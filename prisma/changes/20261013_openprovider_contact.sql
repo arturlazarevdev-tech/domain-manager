@@ -1,0 +1,1 @@
+ALTER TABLE "RegistrantProfile" ADD COLUMN IF NOT EXISTS "phoneAreaCode" TEXT NOT NULL DEFAULT '';

@@ -1,0 +1,367 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum RegistrarProvider {
+  regway
+  openprovider
+}
+
+enum DomainStatus {
+  pending
+  purchased
+  active
+  failed
+}
+
+enum CloudflareStatus {
+  not_added
+  creating
+  waiting_nameservers
+  pending
+  active
+  failed
+}
+
+enum KeitaroStatus {
+  not_added
+  adding
+  active
+  failed
+}
+
+enum HestiaStatus {
+  not_added
+  adding
+  active
+  failed
+}
+
+enum PostPurchaseAction {
+  none
+  keitaro
+  hestia
+  both
+}
+
+enum JobStatus {
+  queued
+  running
+  completed
+  failed
+}
+
+enum UserRole {
+  admin
+  tech
+}
+
+enum ConnectionStatus {
+  unknown
+  connected
+  error
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String?
+  role         UserRole @default(tech)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model AppSettings {
+  id                     String             @id @default("default")
+  defaultRegistrarId     String?
+  defaultBuyerId         String?
+  defaultCloudflareId    String?
+  defaultRegistrantId    String?
+  defaultPostPurchase    PostPurchaseAction @default(none)
+  defaultKeitaroServerId String?
+  defaultHestiaServerId  String?
+  defaultHestiaUser      String?
+  wwwRecordMode          String             @default("a")
+  dnsProxied             Boolean            @default(true)
+  updatedAt              DateTime           @updatedAt
+}
+
+model RegistrarAccount {
+  id                   String             @id @default(cuid())
+  name                 String
+  provider             RegistrarProvider
+  credentialsEncrypted String
+  credentialsLast4     String?
+  currency             String             @default("USD")
+  enabled              Boolean            @default(true)
+  defaultNameservers   String[]           @default([])
+  connectionStatus     ConnectionStatus   @default(unknown)
+  lastError            String?
+  lastTestedAt         DateTime?
+  domains              Domain[]
+  purchases            DomainPurchase[]
+  registrantProfiles   RegistrantProfile[]
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+}
+
+model CloudflareAccount {
+  id                   String             @id @default(cuid())
+  name                 String
+  accountId            String
+  credentialsEncrypted String
+  credentialsLast4     String?
+  enabled              Boolean            @default(true)
+  connectionStatus     ConnectionStatus   @default(unknown)
+  lastError            String?
+  lastTestedAt         DateTime?
+  domains              DomainCloudflare[]
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+}
+
+model BuyerGroup {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  buyers    Buyer[]
+  domains   Domain[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Buyer {
+  id            String   @id @default(cuid())
+  name          String
+  groupId       String?
+  group         BuyerGroup? @relation(fields: [groupId], references: [id], onDelete: Restrict)
+  stageName     String?
+  keitaroGroup  String?
+  company       String?
+  email         String   @default("")
+  phone         String   @default("")
+  phoneCc       String   @default("1")
+  country       String   @default("")
+  state         String   @default("")
+  city          String   @default("")
+  address       String   @default("")
+  zip           String   @default("")
+  isDefault     Boolean  @default(false)
+  registrarRefs Json     @default("{}")
+  domains       Domain[]
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model RegistrantProfile {
+  phoneAreaCode String            @default("")
+  label         String            @default("")
+  id            String            @id @default(cuid())
+  name          String
+  company       String?
+  email         String
+  phone         String
+  phoneCc       String            @default("1")
+  country       String
+  state         String
+  city          String
+  address       String
+  zip           String
+  isDefault     Boolean           @default(false)
+  registrarId   String?
+  registrar     RegistrarAccount? @relation(fields: [registrarId], references: [id], onDelete: SetNull)
+  registrarRefs Json              @default("{}")
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  @@index([registrarId])
+}
+
+model Domain {
+  id               String            @id @default(cuid())
+  domain           String            @unique
+  tld              String
+  registrarId      String
+  registrar        RegistrarAccount  @relation(fields: [registrarId], references: [id])
+  buyerId          String?
+  buyer            Buyer?            @relation(fields: [buyerId], references: [id])
+  groupId          String?
+  buyerGroup       BuyerGroup? @relation(fields: [groupId], references: [id], onDelete: Restrict)
+  purchasePrice    Decimal           @db.Decimal(12, 2)
+  currency         String            @default("USD")
+  registeredAt     DateTime?
+  expiresAt        DateTime?
+  status           DomainStatus      @default(pending)
+  registrarOrderId String?
+  errorMessage     String?
+  nameservers      String[]          @default([])
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  cloudflare       DomainCloudflare?
+  keitaro          DomainKeitaro?
+  hestia           DomainHestia?
+  dnsRecords       DomainDnsRecord[]
+  purchases        DomainPurchase[]
+  activityLogs     ActivityLog[]
+
+  @@index([status])
+  @@index([registrarId])
+  @@index([buyerId])
+  @@index([groupId])
+}
+
+model DomainPurchase {
+  id             String           @id @default(cuid())
+  batchId        String
+  idempotencyKey String           @unique
+  domainId       String?
+  domain         Domain?          @relation(fields: [domainId], references: [id])
+  domainName     String
+  registrarId    String
+  registrar      RegistrarAccount @relation(fields: [registrarId], references: [id])
+  buyerId        String?
+  groupId        String?
+  priceAmount    Decimal          @db.Decimal(12, 2)
+  currency       String
+  status         String
+  errorMessage   String?
+  jobId          String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  @@index([batchId])
+  @@index([domainName])
+}
+
+model DomainCloudflare {
+  id           String            @id @default(cuid())
+  domainId     String            @unique
+  domain       Domain            @relation(fields: [domainId], references: [id], onDelete: Cascade)
+  accountId    String
+  account      CloudflareAccount @relation(fields: [accountId], references: [id])
+  zoneId       String?
+  nameservers  String[]          @default([])
+  status       CloudflareStatus  @default(not_added)
+  errorMessage String?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+}
+
+model DomainDnsRecord {
+  id         String   @id @default(cuid())
+  domainId   String
+  domain     Domain   @relation(fields: [domainId], references: [id], onDelete: Cascade)
+  type       String
+  name       String
+  content    String
+  proxied    Boolean  @default(false)
+  providerId String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([domainId])
+}
+
+model DomainKeitaro {
+  id              String        @id @default(cuid())
+  domainId        String        @unique
+  domain          Domain        @relation(fields: [domainId], references: [id], onDelete: Cascade)
+  serverId        String
+  server          KeitaroServer @relation(fields: [serverId], references: [id])
+  keitaroDomainId String?
+  groupName       String?
+  serverIp        String?
+  status          KeitaroStatus @default(not_added)
+  errorMessage    String?
+  addedAt         DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+}
+
+model DomainHestia {
+  id             String       @id @default(cuid())
+  domainId       String       @unique
+  domain         Domain       @relation(fields: [domainId], references: [id], onDelete: Cascade)
+  serverId       String
+  server         HestiaServer @relation(fields: [serverId], references: [id])
+  webUser        String
+  ip             String?
+  hestiaDomainId String?
+  status         HestiaStatus @default(not_added)
+  errorMessage   String?
+  addedAt        DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+model KeitaroServer {
+  id                   String           @id @default(cuid())
+  name                 String
+  url                  String
+  ipAddress            String?
+  credentialsEncrypted String
+  credentialsLast4     String?
+  enabled              Boolean          @default(true)
+  connectionStatus     ConnectionStatus @default(unknown)
+  lastError            String?
+  lastTestedAt         DateTime?
+  domains              DomainKeitaro[]
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+}
+
+model HestiaServer {
+  id                   String           @id @default(cuid())
+  name                 String
+  url                  String
+  username             String
+  ipAddress            String?
+  credentialsEncrypted String
+  credentialsLast4     String?
+  enabled              Boolean          @default(true)
+  connectionStatus     ConnectionStatus @default(unknown)
+  lastError            String?
+  lastTestedAt         DateTime?
+  domains              DomainHestia[]
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+}
+
+model ActivityLog {
+  id        String   @id @default(cuid())
+  domainId  String?
+  domain    Domain?  @relation(fields: [domainId], references: [id], onDelete: Cascade)
+  jobId     String?
+  action    String
+  message   String
+  level     String   @default("info")
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([domainId])
+  @@index([jobId])
+  @@index([createdAt])
+}
+
+model Job {
+  id        String    @id @default(cuid())
+  type      String
+  status    JobStatus @default(queued)
+  payload   Json
+  progress  Json?
+  result    Json?
+  error     String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model PurchaseLock {
+  domainName String   @id
+  lockedAt   DateTime @default(now())
+  jobId      String?
+}

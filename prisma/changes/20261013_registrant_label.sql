@@ -1,0 +1,1 @@
+ALTER TABLE "RegistrantProfile" ADD COLUMN IF NOT EXISTS "label" TEXT NOT NULL DEFAULT '';
