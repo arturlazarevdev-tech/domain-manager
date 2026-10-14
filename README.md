@@ -157,3 +157,56 @@ node tests/verify-domain-management-ui.cjs
 
 The service check mocks all external APIs; the browser check never writes external DNS
 or server settings. Both clean up their temporary database records.
+
+## Production deployment
+
+Production runs with `compose.production.yml`: Next.js, a separate purchase worker,
+PostgreSQL 16, Redis and Caddy. Only HTTP/HTTPS ports are published. Caddy obtains and
+renews TLS certificates for the domain and its `www` name. Point both DNS names at
+the server before starting the proxy.
+
+Install Docker Engine and Compose v2, place the project in `/opt/domain-manager`,
+then copy `deploy/.env.production.example` to `.env.production` and fill the values.
+Keep this file private (`chmod 600 .env.production`). The database password must
+match the password in `DATABASE_URL`. Generate separate random database and session
+secrets. When migrating an existing installation, preserve its `ENCRYPTION_KEY`:
+changing that key makes stored integration credentials unreadable.
+
+```bash
+docker compose --env-file .env.production -f compose.production.yml build web
+docker compose --env-file .env.production -f compose.production.yml up -d postgres redis
+```
+
+For an existing database, restore its PostgreSQL custom-format dump before starting
+the application. Do not seed a restored database or replace its users.
+
+```bash
+docker compose --env-file .env.production -f compose.production.yml exec -T postgres \
+  pg_restore --exit-on-error --no-owner --no-acl -U domain -d domain_manager < source.dump
+docker compose --env-file .env.production -f compose.production.yml up -d
+docker compose --env-file .env.production -f compose.production.yml ps
+```
+
+For a fresh installation only, initialize the schema and administrator with
+`docker compose --env-file .env.production -f compose.production.yml run --rm --no-deps web npm run db:setup`.
+Stop the old purchase worker before switching installations; finish pending purchases
+before migrating. Production uses container environment variables, so its worker does
+not need a `.env` file inside the image.
+
+Install the daily database backup timer as root:
+
+```bash
+install -m 644 deploy/domain-manager-backup.service deploy/domain-manager-backup.timer /etc/systemd/system/
+systemctl daemon-reload
+systemctl enable --now domain-manager-backup.timer
+sh deploy/backup.sh
+```
+
+Backups are stored with private permissions in `/opt/domain-manager/backups` and kept
+for 14 days. These copies are on the same server; copy them to independent storage
+for recovery after server loss. Keep a secure copy of `.env.production`, especially
+the encryption key. Never commit environment files or database dumps.
+
+After changing source code, take a backup, rebuild `web`, then run `up -d` again.
+Apply any documented additive database changes before starting the new image.
+View logs with `docker compose --env-file .env.production -f compose.production.yml logs --tail=100 web worker proxy`.

@@ -1,0 +1,8 @@
+[Unit]
+Description=Domain Manager PostgreSQL backup
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/domain-manager/deploy/backup.sh

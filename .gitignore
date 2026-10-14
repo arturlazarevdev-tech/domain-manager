@@ -40,3 +40,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# production data and environment template
+/backups/
+*.dump
+!deploy/.env.production.example
