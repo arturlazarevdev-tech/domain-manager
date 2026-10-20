@@ -6,6 +6,8 @@ import { createAndEnqueueJob } from "@/lib/jobs/queue";
 import type { JobProgress, PurchaseItemProgress, PurchaseJobPayload } from "@/lib/jobs/types";
 import { logActivity } from "@/lib/services/activity";
 import { addDomainToCloudflare } from "@/lib/services/provisioning";
+import { assertCloudflareReadyForPurchase } from "@/lib/services/cloudflare";
+import { isCloudflareZoneLimit } from "@/lib/integrations/cloudflare/limits";
 import { resolveCloudflareAccountId, resolveRegistrantContact } from "@/lib/services/settings";
 import { normalizeDomain, splitDomain, registrantLabel } from "@/lib/utils";
 
@@ -52,6 +54,7 @@ export async function startPurchase(input: Omit<PurchaseJobPayload, "batchId" | 
   const cloudflareAccountId = await resolveCloudflareAccountId(input.cloudflareAccountId);
   const cloudflare = await prisma.cloudflareAccount.findUnique({ where: { id: cloudflareAccountId } });
   if (!cloudflare) throw new AppError({ message: "Cloudflare account not found", status: 404 });
+  await assertCloudflareReadyForPurchase(cloudflareAccountId);
   const registrarAccount = await prisma.registrarAccount.findUnique({ where: { id: input.registrarId } });
 
   const checks = await registrar.checkDomains(domains);
@@ -157,6 +160,8 @@ export async function processPurchaseJob(jobId: string) {
   const job = await prisma.job.findUnique({ where: { id: jobId } });
   if (!job) return;
   const payload = job.payload as PurchaseJobPayload;
+  // Recheck queued jobs before the first registration: capacity may have changed.
+  await assertCloudflareReadyForPurchase(payload.cloudflareAccountId);
   const registrar = await getRegistrar(payload.registrarId);
   await logActivity({
     jobId,
@@ -197,6 +202,7 @@ export async function processPurchaseJob(jobId: string) {
     });
   }
 
+  let cloudflareBlocked: string | null = null;
   for (const domain of payload.domains) {
     const item = progress.items.find((i) => i.domain === domain) ?? { domain, status: "queued" };
     item.status = "purchasing";
@@ -205,6 +211,9 @@ export async function processPurchaseJob(jobId: string) {
     await logActivity({ jobId, action: "domain.checking", message: `Checking if ${domain} is still available` });
 
     try {
+      if (cloudflareBlocked) {
+        throw new AppError({ message: `Not purchased: Cloudflare stopped accepting zones. Retry this unpurchased domain after resolving the Cloudflare limit. ${cloudflareBlocked}` });
+      }
       const availability = await registrar.checkDomain(domain);
       await logActivity({
         jobId,
@@ -229,10 +238,10 @@ export async function processPurchaseJob(jobId: string) {
       await logActivity({
         jobId,
         action: "domain.priced",
-        message: `${domain} price is ${price.registration.amount} ${price.registration.currency}${price.promo ? " (promo)" : ""}`,
+        message: `${domain} ${price.estimated ? "catalog estimate" : "price"} is ${price.registration.amount} ${price.registration.currency}${price.promo ? " (promo)" : ""}`,
       });
 
-      if (remainingBalance !== null && remainingBalance < price.registration.amount) {
+      if (!price.estimated && remainingBalance !== null && remainingBalance < price.registration.amount) {
         item.status = "failed";
         item.error = "Insufficient registrar balance";
         await markPurchase(domain, "failed", "Insufficient registrar balance");
@@ -258,6 +267,7 @@ export async function processPurchaseJob(jobId: string) {
         action: "domain.registering",
         message: `Submitting ${domain} registration to the registrar`,
       });
+      await assertCloudflareReadyForPurchase(payload.cloudflareAccountId);
       const result = await registrar.registerDomain({
         domain,
         contact,
@@ -278,8 +288,11 @@ export async function processPurchaseJob(jobId: string) {
           },
         });
       }
+      const charged = result.price ?? price.registration;
+      item.price = charged.amount;
+      item.currency = charged.currency;
       if (remainingBalance !== null) {
-        remainingBalance -= price.registration.amount;
+        remainingBalance -= charged.amount;
       }
 
       const { tld } = splitDomain(domain);
@@ -290,8 +303,8 @@ export async function processPurchaseJob(jobId: string) {
           registrarId: payload.registrarId,
           buyerId: payload.buyerId ?? null,
           groupId: payload.groupId ?? null,
-          purchasePrice: new Prisma.Decimal(price.registration.amount),
-          currency: price.registration.currency,
+          purchasePrice: new Prisma.Decimal(charged.amount),
+          currency: charged.currency,
           registeredAt: result.registrationStatus === "pending" ? null : result.registeredAt ?? new Date(),
           expiresAt: result.expiresAt,
           status: result.registrationStatus ?? "purchased",
@@ -302,7 +315,10 @@ export async function processPurchaseJob(jobId: string) {
 
       await prisma.domainPurchase.update({
         where: { idempotencyKey: `purchase:${domain}` },
-        data: { domainId: saved.id, status: result.registrationStatus ?? "purchased" },
+        data: {
+          domainId: saved.id, status: result.registrationStatus ?? "purchased",
+          priceAmount: new Prisma.Decimal(charged.amount), currency: charged.currency,
+        },
       });
 
       await logActivity({
@@ -335,6 +351,7 @@ export async function processPurchaseJob(jobId: string) {
         });
       } catch (error) {
         item.error = error instanceof Error ? error.message : "Cloudflare provisioning failed";
+        if (isCloudflareZoneLimit(error)) cloudflareBlocked = item.error;
         await logActivity({
           domainId: saved.id,
           jobId,

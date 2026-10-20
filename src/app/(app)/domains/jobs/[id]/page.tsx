@@ -64,6 +64,7 @@ export default function JobPage() {
   const job = data?.job;
   const items = job?.progress?.items ?? [];
   const domains = data?.domains ?? [];
+  const domainsById = new Map(domains.map((row) => [row.id, row]));
   const payload = job?.payload;
   const logs = data?.activityLogs ?? [];
   const done = items.filter((i) => i.status === "purchased").length;
@@ -135,20 +136,31 @@ export default function JobPage() {
       {job?.status === "failed" && job.error && (
         <Card className="mb-4 border-destructive/40 text-sm text-destructive">{job.error}</Card>
       )}
+      {domains.some((row) => row.cloudflare?.status === "failed") && (
+        <Card className="mb-4 text-sm">
+          Purchased domains are already registered. Resolve the Cloudflare error, then use Retry Cloudflare below to finish setup without purchasing again.
+        </Card>
+      )}
       {items.length > 0 && (
         <Card className="mb-4 space-y-2">
-          {items.map((item) => (
+          {items.map((item) => {
+            const savedDomain = item.domainId ? domainsById.get(item.domainId) : undefined;
+            const error = savedDomain?.cloudflare
+              ? savedDomain.cloudflare.status === "failed" ? savedDomain.cloudflare.errorMessage ?? item.error : undefined
+              : item.error;
+            return (
             <div key={item.domain} className="flex items-center justify-between gap-3 rounded-md px-2 py-1.5">
               <div className="min-w-0">
                 <div className="font-medium">{item.domain}</div>
                 {item.status === "purchasing" && item.step && (
                   <div className="text-xs text-muted-foreground">{item.step}</div>
                 )}
-                {item.error && <div className="text-sm text-destructive">{item.error}</div>}
+                {error && <div className="text-sm text-destructive">{error}</div>}
               </div>
               <StatusBadge value={item.status} />
             </div>
-          ))}
+            );
+          })}
         </Card>
       )}
       <Card className="mb-4">

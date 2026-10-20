@@ -6,6 +6,8 @@ import { OpenProviderAdapter } from "./openprovider/adapter";
 import { RegwayAdapter } from "./regway/adapter";
 import { openproviderCredentialsSchema } from "./openprovider/credentials";
 import { regwayCredentialsSchema } from "./regway/credentials";
+import { dynadotCredentialsSchema } from "./dynadot/credentials";
+import { DynadotAdapter } from "./dynadot/adapter";
 
 export async function getRegistrar(registrarId: string): Promise<DomainRegistrar> {
   const account = await prisma.registrarAccount.findUnique({ where: { id: registrarId } });
@@ -22,6 +24,7 @@ export function createRegistrarAdapter(account: {
   provider: string;
   credentialsEncrypted: string;
   defaultNameservers: string[];
+  currency?: string;
 }): DomainRegistrar {
   const credentials = decryptJson<Record<string, unknown>>(account.credentialsEncrypted);
 
@@ -32,6 +35,8 @@ export function createRegistrarAdapter(account: {
       });
     case "openprovider":
       return new OpenProviderAdapter(openproviderCredentialsSchema.parse(credentials), { defaultNameservers: account.defaultNameservers });
+    case "dynadot":
+      return new DynadotAdapter(dynadotCredentialsSchema.parse(credentials), { defaultNameservers: account.defaultNameservers, currency: account.currency });
     default:
       throw new AppError({ message: `Unknown registrar provider: ${account.provider}` });
   }

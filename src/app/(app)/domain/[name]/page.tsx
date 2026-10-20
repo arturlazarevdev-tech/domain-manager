@@ -35,7 +35,7 @@ type DomainDetails = {
     account: { id: string; name: string };
   } | null;
   dns: { ip: string | null; records: Array<{ id: string; type: string; name: string; content: string }> };
-  keitaro: { status: string; groupName?: string | null; serverIp?: string | null; server: { id: string; name: string } } | null;
+  keitaro: { status: string; groupName?: string | null; serverIp?: string | null; errorMessage?: string | null; server: { id: string; name: string } } | null;
   hestia: { status: string; ip?: string | null; webUser?: string | null; server: { id: string; name: string } } | null;
   activityLogs: Array<{ id: string; message: string; createdAt: string; level: string }>;
 };
@@ -157,6 +157,12 @@ export default function DomainDetailsPage() {
               <div>
                 Status: <StatusBadge value={domain.keitaro.status} />
               </div>
+              {domain.keitaro.errorMessage && <div role="alert" className="text-destructive">{domain.keitaro.errorMessage}</div>}
+              {domain.keitaro.status === "failed" && (
+                <Button variant="outline" onClick={() => run(`/api/domains/${domain.id}/keitaro`, { serverId: domain.keitaro!.server.id, group: domain.keitaro!.groupName })}>
+                  Retry Keitaro
+                </Button>
+              )}
             </>
           ) : domain.hestia ? (
             <>

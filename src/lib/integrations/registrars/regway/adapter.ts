@@ -6,6 +6,7 @@ import type {
   DomainInfo,
   DomainPrice,
   DomainRegistrar,
+  Money,
   RegisterDomainRequest,
   RegisterDomainResult,
   RegistrarBalance,
@@ -30,6 +31,11 @@ type PriceCache = {
 };
 
 const priceCache = new Map<string, PriceCache>();
+const recentChargeCache = new Map<string, {
+  expiresAt: number;
+  value: Promise<DomainPrice["recentRegistration"]>;
+}>();
+const RECENT_CHARGE_MAX_AGE = 7 * 24 * 60 * 60 * 1000;
 
 export class RegwayAdapter implements DomainRegistrar {
   readonly provider = "regway";
@@ -159,10 +165,13 @@ export class RegwayAdapter implements DomainRegistrar {
         provider: "regway",
       });
     }
+    const recent = !prices.promo ? await this.getRecentRegistrationCharge(tld).catch(() => undefined) : undefined;
     return {
       domain,
       premium: false,
       promo: Boolean(prices.promo),
+      estimated: !prices.promo,
+      recentRegistration: recent?.currency === catalog.currency ? recent : undefined,
       registration: { amount: prices.registration, currency: catalog.currency },
       listRegistration:
         prices.listRegistration && prices.listRegistration > prices.registration
@@ -188,6 +197,7 @@ export class RegwayAdapter implements DomainRegistrar {
   }
 
   async registerDomain(data: RegisterDomainRequest): Promise<RegisterDomainResult> {
+    const submittedAt = Date.now();
     assertValidDomain(data.domain);
     const extraCustomerId = typeof data.extra?.customerId === "string" ? data.extra.customerId : undefined;
     const extraContactId = typeof data.extra?.contactId === "string" ? data.extra.contactId : undefined;
@@ -223,8 +233,14 @@ export class RegwayAdapter implements DomainRegistrar {
       typeof response === "object"
         ? String(response.entityid ?? response.orderid ?? response.orderId ?? "")
         : String(response);
+    // Registration discounts can be absent from the catalog/promo API. Read
+    // our own invoice, not the customer's invoice returned by register.json.
+    // A delayed invoice must never turn a completed purchase into a retry.
+    const price = await this.getRegistrationCharge(data.domain, data.years ?? 1, submittedAt)
+      .catch(() => undefined);
     return {
       domain: data.domain,
+      price,
       orderId: orderId || undefined,
       nameservers,
       registeredAt: new Date(),
@@ -232,6 +248,46 @@ export class RegwayAdapter implements DomainRegistrar {
       externalCustomerId: customerId,
       externalContactId: contactId,
     };
+  }
+
+  async getRegistrationCharge(domain: string, years = 1, notBefore?: number): Promise<Money | undefined> {
+    assertValidDomain(domain);
+    const data = await this.client.request<Record<string, unknown>>("/billing/my-transactions/search.json", "GET", {
+      "no-of-records": 100,
+      "page-no": 1,
+      "transaction-type": ["invoice"],
+      "transaction-description": `Registration of ${domain} for ${years} ${years === 1 ? "year" : "years"}`,
+      ...(notBefore != null ? { "transaction-date-start": Math.floor(notBefore / 1000) - 5 } : {}),
+    });
+    return registrationCharge(data, domain, years, notBefore);
+  }
+
+  private async getRecentRegistrationCharge(tld: string): Promise<DomainPrice["recentRegistration"]> {
+    const key = `${this.client.baseUrl}:${this.credentials.authUserId}:${tld}`;
+    const cached = recentChargeCache.get(key);
+    if (cached && cached.expiresAt > Date.now()) return cached.value;
+    const now = Date.now();
+    const params = {
+      "no-of-records": 100,
+      "page-no": 1,
+      "transaction-type": ["invoice"],
+      "transaction-description": `.${tld} for 1 year`,
+      "transaction-date-start": Math.floor((now - RECENT_CHARGE_MAX_AGE) / 1000),
+    };
+    const value = (async () => {
+      let data = await this.client.request<Record<string, unknown>>("/billing/my-transactions/search.json", "GET", params);
+      const count = Number(data.recsindb);
+      if (Number.isSafeInteger(count) && count > 100) {
+        data = await this.client.request<Record<string, unknown>>("/billing/my-transactions/search.json", "GET", {
+          ...params, "page-no": Math.ceil(count / 100),
+        });
+      }
+      return recentRegistrationCharge(data, tld, now);
+    })().catch(() => undefined);
+    // Share one billing query across a bulk search; history is reference data,
+    // never a replacement for the current registration quote or its currency.
+    recentChargeCache.set(key, { expiresAt: now + 5 * 60 * 1000, value });
+    return value;
   }
 
   async setNameservers(domain: string, nameservers: string[]) {
@@ -280,7 +336,7 @@ export class RegwayAdapter implements DomainRegistrar {
   }
 
   private async loadPrices(): Promise<PriceCache> {
-    const cacheKey = this.credentials.authUserId;
+    const cacheKey = `${this.client.baseUrl}:${this.credentials.authUserId}`;
     const cached = priceCache.get(cacheKey);
     if (cached && cached.expiresAt > Date.now()) return cached;
 
@@ -377,6 +433,38 @@ export class RegwayAdapter implements DomainRegistrar {
     });
     return String(id);
   }
+}
+
+export function registrationCharge(data: Record<string, unknown>, domain: string, years: number, notBefore?: number): Money | undefined {
+  const description = `Registration of ${domain} for ${years} ${years === 1 ? "year" : "years"}`.toLowerCase();
+  const invoices = Object.values(data).flatMap((value) => {
+    if (!value || typeof value !== "object") return [];
+    const row = value as Record<string, unknown>;
+    if (row.type !== "invoice" || String(row.description).trim().toLowerCase() !== description) return [];
+    const amount = row.sellingamount == null || String(row.sellingamount).trim() === "" ? NaN : Number(row.sellingamount);
+    const timestamp = Number(row.transactiondate);
+    const currency = String(row.sellingcurrencysymbol ?? "").toUpperCase();
+    if (!Number.isFinite(amount) || amount > 0 || !Number.isFinite(timestamp) || timestamp <= 0 || !/^[A-Z]{3}$/.test(currency)) return [];
+    if (notBefore != null && timestamp < Math.floor(notBefore / 1000) - 5) return [];
+    return [{ amount: Math.abs(amount), currency, timestamp }];
+  }).sort((a, b) => b.timestamp - a.timestamp);
+  const latest = invoices[0];
+  if (!latest || invoices.some(row => row.timestamp === latest.timestamp && (row.amount !== latest.amount || row.currency !== latest.currency))) return undefined;
+  return { amount: latest.amount, currency: latest.currency };
+}
+
+export function recentRegistrationCharge(data: Record<string, unknown>, tld: string, now = Date.now()): DomainPrice["recentRegistration"] {
+  const rows = Object.values(data).flatMap(value => {
+    if (!value || typeof value !== "object") return [];
+    const row = value as Record<string, unknown>;
+    const domain = String(row.description ?? "").match(/^Registration of ([a-z0-9.-]+) for 1 year$/i)?.[1]?.toLowerCase();
+    if (!domain || splitDomain(domain).tld !== tld) return [];
+    const timestamp = Number(row.transactiondate) * 1000;
+    if (!Number.isFinite(timestamp) || timestamp < now - RECENT_CHARGE_MAX_AGE || timestamp > now + 5000) return [];
+    const charge = registrationCharge({ invoice: row }, domain, 1, now - RECENT_CHARGE_MAX_AGE);
+    return charge ? [{ ...charge, domain, chargedAt: new Date(timestamp).toISOString() }] : [];
+  }).sort((a, b) => b.chargedAt.localeCompare(a.chargedAt));
+  return rows[0];
 }
 
 type PromoRow = {

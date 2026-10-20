@@ -1,5 +1,5 @@
 import { jsonError } from "@/lib/errors";
-import { requireUser } from "@/lib/api/auth";
+import { requireAdmin } from "@/lib/api/auth";
 import { CloudflareAdapter } from "@/lib/integrations/cloudflare/adapter";
 import { z } from "zod";
 
@@ -9,7 +9,7 @@ const testSchema = z.object({
 });
 
 export async function POST(request: Request) {
-  const { response } = await requireUser();
+  const { response } = await requireAdmin();
   if (response) return response;
   try {
     const body = testSchema.parse(await request.json());

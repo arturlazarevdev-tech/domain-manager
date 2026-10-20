@@ -50,13 +50,19 @@ async function main() {
 
   // Lists follow the provider's total count rather than truncating at one page.
   handler = (call) => {
-    if (call.url.pathname === '/v1/tlds') return { total: 101, results: call.url.searchParams.get('offset') === '0' ? Array.from({ length: 100 }, (_, i) => ({ name: `tld${i}` })) : [{ name: "co.uk" }] };
+    if (call.url.pathname === '/v1/tlds') {
+      assert.equal(call.url.searchParams.has('only_names'), false, 'Live API rejects only_names=true');
+      assert.equal(call.url.searchParams.get('is_active'), 'true');
+      return { total: 102, results: call.url.searchParams.get('offset') === '0' ? Array.from({ length: 100 }, (_, i) => ({ name: `tld${i}` })) : [{ name: "co.uk" }, { name: "digital" }] };
+    }
     if (call.url.pathname === '/v1/domains' && call.method === 'GET') return { total: 1, results: [{ id: 42, domain: { name: 'example', extension: 'co.uk' }, status: 'ACT' }] };
     if (call.url.pathname === '/v1/domains/42' && call.method === 'GET') return { id: 42, domain: { name: 'example', extension: 'co.uk' }, status: 'ACT', active_date: '2026-10-13 10:00:00', renewal_date: '2027-10-13 10:00:00', name_servers: [{ name: 'ns1.example.net' }] };
     if (call.url.pathname === '/v1/domains/42' && call.method === 'PUT') { assert.deepEqual(call.body, { name_servers: [{ name: 'beth.ns.cloudflare.com' }, { name: 'koa.ns.cloudflare.com' }] }); return {}; }
     throw new Error('Unexpected path');
   };
-  assert.equal((await adapter.listTlds()).length, 101);
+  const tlds = await adapter.listTlds();
+  assert.equal(tlds.length, 102);
+  assert(tlds.includes('digital'), 'Generator catalog includes .digital beyond the first page');
   assert.equal((await adapter.listDomains())[0].orderId, '42');
   assert.equal((await adapter.getDomain('example.co.uk')).registeredAt?.toISOString(), '2026-10-13T10:00:00.000Z');
   await adapter.setNameservers('example.co.uk', ['beth.ns.cloudflare.com', 'koa.ns.cloudflare.com']);

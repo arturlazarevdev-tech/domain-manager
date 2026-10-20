@@ -1,5 +1,5 @@
 import { jsonError } from "@/lib/errors";
-import { requireUser } from "@/lib/api/auth";
+import { requireAdmin } from "@/lib/api/auth";
 import { decryptJson, encryptJson } from "@/lib/crypto";
 import { prisma } from "@/lib/db";
 import { getKeitaro } from "@/lib/integrations/factory";
@@ -9,7 +9,7 @@ import { keitaroSchema } from "@/lib/validators";
 type Ctx = { params: Promise<{ id: string }> };
 
 export async function PATCH(request: Request, ctx: Ctx) {
-  const { response } = await requireUser();
+  const { response } = await requireAdmin();
   if (response) return response;
   try {
     const { id } = await ctx.params;
@@ -36,7 +36,7 @@ export async function PATCH(request: Request, ctx: Ctx) {
 }
 
 export async function DELETE(_request: Request, ctx: Ctx) {
-  const { response } = await requireUser();
+  const { response } = await requireAdmin();
   if (response) return response;
   const { id } = await ctx.params;
   await prisma.keitaroServer.delete({ where: { id } });
@@ -44,7 +44,7 @@ export async function DELETE(_request: Request, ctx: Ctx) {
 }
 
 export async function POST(_request: Request, ctx: Ctx) {
-  const { response } = await requireUser();
+  const { response } = await requireAdmin();
   if (response) return response;
   try {
     const { id } = await ctx.params;

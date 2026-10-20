@@ -2,7 +2,7 @@ import { z } from "zod";
 
 export const registrarUpsertSchema = z.object({
   name: z.string().min(1),
-  provider: z.enum(["regway", "openprovider"]),
+  provider: z.enum(["regway", "openprovider", "dynadot"]),
   currency: z.string().min(1).default("USD"),
   enabled: z.boolean().optional().default(true),
   defaultNameservers: z.array(z.string()).optional(),
@@ -10,6 +10,7 @@ export const registrarUpsertSchema = z.object({
     .object({
       authUserId: z.string().optional(),
       apiKey: z.string().optional(),
+      apiSecret: z.string().optional(),
       sandbox: z.boolean().optional(),
       customerId: z.string().optional(),
       username: z.string().optional(),

@@ -67,3 +67,10 @@ export function jsonError(error: unknown, fallbackStatus = 500) {
   const status = error instanceof ZodError ? 400 : error instanceof AppError ? error.status : fallbackStatus;
   return Response.json(errorPayload(error), { status });
 }
+
+export function detailedErrorMessage(error: unknown, fallback: string) {
+  if (error instanceof AppError && error.details && error.details !== error.message) {
+    return `${error.message}: ${error.details}`;
+  }
+  return error instanceof Error ? error.message : fallback;
+}

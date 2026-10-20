@@ -84,6 +84,7 @@ export function buyerLabel(buyer: { name: string; stageName?: string | null }) {
 export function providerLabel(provider: string) {
   if (provider === "regway") return "Regway";
   if (provider === "openprovider") return "Openprovider";
+  if (provider === "dynadot") return "Dynadot";
   return provider;
 }
 

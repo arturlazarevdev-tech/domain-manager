@@ -1,6 +1,6 @@
 import { isIP } from "node:net";
 import { prisma } from "@/lib/db";
-import { AppError } from "@/lib/errors";
+import { AppError, detailedErrorMessage } from "@/lib/errors";
 import { getCloudflare, getHestia, getKeitaro } from "@/lib/integrations/factory";
 import { getRegistrar } from "@/lib/integrations/registrars/factory";
 import { logActivity } from "@/lib/services/activity";
@@ -237,6 +237,8 @@ export async function addDomainToKeitaro(domainId: string, serverId: string, gro
 
   try {
     const created = await adapter.addDomain(domain.domain, { group: groupName });
+    // Preserve the remote ID even if the following DNS step needs a retry.
+    await prisma.domainKeitaro.update({ where: { id: record.id }, data: { keitaroDomainId: created.id } });
     await pointDomainDns(domainId, ip);
     await prisma.domainKeitaro.update({
       where: { id: record.id },
@@ -256,7 +258,7 @@ export async function addDomainToKeitaro(domainId: string, serverId: string, gro
     });
     return prisma.domainKeitaro.findUnique({ where: { domainId }, include: { server: true } });
   } catch (error) {
-    const details = error instanceof Error ? error.message : "Keitaro failed";
+    const details = detailedErrorMessage(error, "Keitaro failed");
     await prisma.domainKeitaro.update({
       where: { id: record.id },
       data: { status: "failed", errorMessage: details },

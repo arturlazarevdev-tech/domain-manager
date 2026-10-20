@@ -1,5 +1,5 @@
 import { AppError, jsonError } from "@/lib/errors";
-import { requireUser } from "@/lib/api/auth";
+import { requireAdmin } from "@/lib/api/auth";
 import { encryptJson } from "@/lib/crypto";
 import { prisma } from "@/lib/db";
 import { decryptJson } from "@/lib/crypto";
@@ -10,7 +10,7 @@ import { registrarUpsertSchema } from "@/lib/validators";
 type Ctx = { params: Promise<{ id: string }> };
 
 export async function PATCH(request: Request, ctx: Ctx) {
-  const { response } = await requireUser();
+  const { response } = await requireAdmin();
   if (response) return response;
   try {
     const { id } = await ctx.params;
@@ -45,7 +45,7 @@ export async function PATCH(request: Request, ctx: Ctx) {
 }
 
 export async function DELETE(_request: Request, ctx: Ctx) {
-  const { response } = await requireUser();
+  const { response } = await requireAdmin();
   if (response) return response;
   try {
     const { id } = await ctx.params;

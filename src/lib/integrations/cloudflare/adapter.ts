@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { AppError } from "@/lib/errors";
+import { cloudflareZoneLimit } from "./limits";
 import type { CloudflareProvider, CloudflareZone } from "@/lib/integrations/types";
 
 export const cloudflareCredentialsSchema = z.object({
@@ -118,6 +119,24 @@ export class CloudflareAdapter implements CloudflareProvider {
     return payload.result_info?.total_count ?? (Array.isArray(payload.result) ? payload.result.length : 0);
   }
 
+  async assertZoneCapacity() {
+    const counts = await Promise.all([undefined, "active", "pending"].map(async (status) => {
+      const payload = await this.requestRaw<unknown[]>(
+        `/zones?account.id=${encodeURIComponent(this.credentials.accountId)}&per_page=1${status ? `&status=${status}` : ""}`,
+      );
+      const count = payload.result_info?.total_count;
+      if (typeof count !== "number" || !Number.isInteger(count) || count < 0) {
+        throw new AppError({ message: "Could not verify Cloudflare zone capacity. Try again before purchasing.", provider: "cloudflare", status: 502 });
+      }
+      return count;
+    }));
+    const [total, active, pending] = counts;
+    // Cloudflare also enforces account-specific and rolling limits at creation time.
+    if (total > 50 && pending > active) {
+      throw cloudflareZoneLimit(`${total} zones: ${active} active, ${pending} pending.`);
+    }
+  }
+
   async listDnsRecords(zoneId: string) {
     const records: Array<{ id: string; type: string; name: string; content: string; proxied: boolean }> = [];
     for (let page = 1; ; page++) {
@@ -214,13 +233,17 @@ export class CloudflareAdapter implements CloudflareProvider {
     }
     if (!response.ok || !payload.success) {
       const raw = payload.errors?.[0]?.message || "Cloudflare request failed";
+      const details = payload.errors?.map((e) => e.message).join("; ") || raw;
+      if (response.status === 429 || /limit for adding zones|please activate some zones/i.test(details)) {
+        throw cloudflareZoneLimit(details);
+      }
       const message = /zone\.create/i.test(raw)
         ? 'Cloudflare token cannot create zones. Create a new API Token with Zone → Zone → Edit, Zone → DNS → Edit, Account → Account Settings → Read, and Zone Resources = All zones from this account. Then save it in Settings → Cloudflare and retry.'
         : raw;
       throw new AppError({
         message,
         provider: "cloudflare",
-        details: payload.errors?.map((e) => e.message).join("; "),
+        details,
         status: 502,
         retryable: true,
       });

@@ -1,6 +1,6 @@
 import { getSpending } from "@/lib/services/spending";
 import { AppError, jsonError } from "@/lib/errors";
-import { requireUser } from "@/lib/api/auth";
+import { requireUser, requireAdmin } from "@/lib/api/auth";
 import { prisma } from "@/lib/db";
 import { buyerSchema } from "@/lib/validators";
 
@@ -12,7 +12,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const { response } = await requireUser();
+  const { response } = await requireAdmin();
   if (response) return response;
   try {
     const body = buyerSchema.parse(await request.json());

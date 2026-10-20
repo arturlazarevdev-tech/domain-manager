@@ -25,6 +25,8 @@ export type DomainPrice = {
   listRegistration?: Money;
   premium?: boolean;
   promo?: boolean;
+  estimated?: boolean;
+  recentRegistration?: Money & { domain: string; chargedAt: string };
 };
 
 export type RegistrantContact = {

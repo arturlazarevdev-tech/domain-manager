@@ -49,6 +49,19 @@ npm run worker
 
 Default login: `ADMIN_EMAIL` / `ADMIN_PASSWORD` from `.env`.
 
+## Access permissions
+
+Both `admin` and `tech` users can purchase and manage domains using existing buyers,
+groups, registrant profiles and integrations. Only administrators can create, edit,
+delete or test configuration: buyers/groups, registrars, registrant profiles,
+Cloudflare accounts, Keitaro/Hestia servers, general settings and users.
+Infrastructure and Settings navigation and pages are available only to administrators.
+API permissions use the current database role, so demotion takes effect immediately.
+
+With the app and its database running, verify permissions with
+`node --import tsx tests/access-control.ts`. This check uses temporary users and a
+buyer group, cleans them up, and submits only invalid purchase input (no purchases).
+
 ## Purchase flow
 
 1. Recheck availability and price
@@ -131,6 +144,16 @@ API contracts: [official specification](https://developer.openprovider.com/data/
 
 ## Manual domains, updates and TXT records
 
+Keitaro domain groups remain enabled on servers that support them. When a server
+specifically returns `Unknown group type`, domains are added without `group_id`;
+the buyer group remains in this app and is sent as notes for newly created
+Keitaro domains (older servers may ignore notes). Other API errors remain failures. Retrying an existing domain
+preserves remote notes/settings on these older servers and does not create a duplicate.
+Both array and object creation responses are validated before storing the remote ID.
+Bulk Keitaro results report actual successes and individual failures; failed domain
+details show the provider error and a **Retry Keitaro** button.
+Mocked adapter regression check: `node --import tsx tests/keitaro.ts`.
+
 **Purchased domains → Add domain** records an existing domain with its original purchase
 date/cost, registrar, buyer/group, Cloudflare account and server. Choose **Save existing
 settings** for metadata and read-only synchronization, or **Configure Cloudflare and server**
@@ -159,6 +182,17 @@ The service check mocks all external APIs; the browser check never writes extern
 or server settings. Both clean up their temporary database records.
 
 ## Production deployment
+
+Purchases check Cloudflare capacity before queuing and before each registration.
+An account with a recent zone-limit rejection pauses new purchases for 10 minutes;
+an account with over 50 zones and more pending than active is also blocked until
+its pending zones activate. Cloudflare can impose additional account-specific limits.
+If zone creation fails with a limit during a batch, remaining domains are not bought.
+Already registered domains remain purchased: use **Retry Cloudflare** on the purchase
+result or domain details after resolving the limit. The result page displays current
+Cloudflare errors, so successfully retried domains no longer show stale failures.
+Regression check (external APIs are mocked; database fixtures are removed):
+`node --import tsx tests/cloudflare-limits.ts`.
 
 Production runs with `compose.production.yml`: Next.js, a separate purchase worker,
 PostgreSQL 16, Redis and Caddy. Only HTTP/HTTPS ports are published. Caddy obtains and
@@ -208,5 +242,40 @@ for recovery after server loss. Keep a secure copy of `.env.production`, especia
 the encryption key. Never commit environment files or database dumps.
 
 After changing source code, take a backup, rebuild `web`, then run `up -d` again.
+Keep `postcss.config.mjs` in the build context: it is required to compile Tailwind.
+The Docker build verifies generated CSS. Before switching images, check actual
+desktop/mobile styling with `TEST_BASE_URL=http://localhost:3000 node tests/verify-styles-ui.mjs`
+(requires local Chrome; an optional `TEST_SESSION_FILE` also checks the app sidebar).
 Apply any documented additive database changes before starting the new image.
 View logs with `docker compose --env-file .env.production -f compose.production.yml logs --tail=100 web worker proxy`.
+
+## Dynadot
+
+Dynadot is available in **Settings → Registrars → Add → Dynadot**. Enable
+RESTful API access in your Dynadot account, allow the application's outbound IP
+(production: `209.99.186.127`), then save the matching **API key** and **API secret**.
+Credentials are encrypted and never returned by the application API. Sandbox
+uses separate Dynadot sandbox credentials. Create a registrant profile for the
+new registrar before buying domains.
+
+The adapter uses signed REST v2 requests, live domain-specific one-year prices,
+five-domain search batches compatible with Regular accounts, paginated TLD and
+domain lists, account balances, registration with explicit registrant contacts,
+and nameserver updates for Cloudflare. Requests are serialized within each
+application process for Regular account limits. Dynadot can still return quota
+or rate-limit errors across multiple processes; these errors are shown to users.
+Registration requests are never automatically replayed after an uncertain response.
+
+Apply the additive enum migration and regenerate Prisma before starting the new
+version:
+
+```sh
+npx prisma db execute --file prisma/changes/20261020_dynadot.sql --schema prisma/schema.prisma
+npx prisma generate
+node --import tsx tests/dynadot.ts
+```
+
+Contracts and setup: [Dynadot REST documentation](https://www.dynadot.com/domain/api-document),
+[API settings](https://www.dynadot.com/help/question/find-API-settings).
+Tests mock all provider requests; they never buy domains. A real account test
+requires the account owner's API credentials and allowed server IP.

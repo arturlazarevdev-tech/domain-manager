@@ -13,6 +13,7 @@ COPY . .
 RUN npx prisma generate
 # Allow TypeScript to finish on small hosts with swap; applies only during build.
 RUN NODE_OPTIONS=--max-old-space-size=1536 npm run build
+RUN node deploy/verify-built-css.mjs
 
 FROM base AS runtime
 ENV NODE_ENV=production

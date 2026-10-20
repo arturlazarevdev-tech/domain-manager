@@ -16,7 +16,7 @@ type Registrar = {
   defaultNameservers: string[]; sandbox: boolean;
 };
 const empty = {
-  name: "Regway", provider: "regway", currency: "USD", authUserId: "", apiKey: "", username: "", password: "",
+  name: "Regway", provider: "regway", currency: "USD", authUserId: "", apiKey: "", apiSecret: "", username: "", password: "",
   sandbox: false, enabled: true, defaultNameservers: "ns1.onlyfordns.net, ns2.onlyfordns.net",
 };
 
@@ -28,6 +28,7 @@ export default function RegistrarsSettingsPage() {
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState(empty);
   const isOpenprovider = form.provider === "openprovider";
+  const isDynadot = form.provider === "dynadot";
 
   async function save() {
     setSaving(true);
@@ -39,6 +40,7 @@ export default function RegistrarsSettingsPage() {
           defaultNameservers: form.defaultNameservers.split(",").map((s) => s.trim()).filter(Boolean),
           credentials: isOpenprovider
             ? { username: form.username, password: form.password, sandbox: form.sandbox }
+            : isDynadot ? { apiKey: form.apiKey, apiSecret: form.apiSecret, sandbox: form.sandbox }
             : { authUserId: form.authUserId, apiKey: form.apiKey, sandbox: form.sandbox },
         }),
       });
@@ -82,26 +84,30 @@ export default function RegistrarsSettingsPage() {
         <Field label="Provider">
           <Select disabled={Boolean(editingId)} value={form.provider} onChange={(e) => {
             const provider = e.target.value;
-            setForm({ ...empty, provider, name: provider === "openprovider" ? "Openprovider" : "Regway", defaultNameservers: provider === "openprovider" ? "" : empty.defaultNameservers });
+            setForm({ ...empty, provider, name: provider === "openprovider" ? "Openprovider" : provider === "dynadot" ? "Dynadot" : "Regway", defaultNameservers: provider === "regway" ? empty.defaultNameservers : "" });
           }}>
-            <option value="regway">Regway</option><option value="openprovider">Openprovider</option>
+            <option value="regway">Regway</option><option value="openprovider">Openprovider</option><option value="dynadot">Dynadot</option>
           </Select>
         </Field>
         {isOpenprovider ? <>
           <Field label="Username"><Input autoComplete="off" value={form.username} placeholder={editingId ? "Leave blank to keep current username" : "Openprovider username"} onChange={(e) => setForm({ ...form, username: e.target.value })} /></Field>
           <Field label="Password"><Input type="password" autoComplete="new-password" value={form.password} placeholder={editingId ? "Leave blank to keep current password" : "Openprovider password"} onChange={(e) => setForm({ ...form, password: e.target.value })} /></Field>
           <p className="text-xs text-muted-foreground">Enable API access in Openprovider: Account overview → Contact persons → API. Sandbox uses a separate sandbox account.</p>
+        </> : isDynadot ? <>
+          <Field label="API key"><Input type="password" autoComplete="new-password" value={form.apiKey} placeholder={editingId ? "Leave blank to keep current key" : "Dynadot API key"} onChange={(e) => setForm({ ...form, apiKey: e.target.value })} /></Field>
+          <Field label="API secret"><Input type="password" autoComplete="new-password" value={form.apiSecret} placeholder={editingId ? "Leave blank to keep current secret" : "Dynadot API secret"} onChange={(e) => setForm({ ...form, apiSecret: e.target.value })} /></Field>
+          <p className="text-xs text-muted-foreground">Enable RESTful API access in Dynadot → Tools → API and allow this server’s IP. Use the API key and matching secret. Sandbox uses separate credentials.</p>
         </> : <>
           <Field label="Reseller ID"><Input value={form.authUserId} placeholder={editingId ? "Leave blank to keep current ID" : ""} onChange={(e) => setForm({ ...form, authUserId: e.target.value })} /></Field>
           <Field label="API key"><Input type="password" value={form.apiKey} placeholder={editingId ? "Leave blank to keep current key" : ""} onChange={(e) => setForm({ ...form, apiKey: e.target.value })} /></Field>
           <p className="text-xs text-muted-foreground">Allow this server’s IP in Regway → Settings → API.</p>
         </>}
-        <Field label="Default nameservers"><Input value={form.defaultNameservers} placeholder={isOpenprovider ? "Optional: uses Openprovider DNS until Cloudflare is assigned" : "ns1.example.com, ns2.example.com"} onChange={(e) => setForm({ ...form, defaultNameservers: e.target.value })} /></Field>
+        <Field label="Default nameservers"><Input value={form.defaultNameservers} placeholder={isOpenprovider || isDynadot ? "Optional: uses registrar defaults until Cloudflare is assigned" : "ns1.example.com, ns2.example.com"} onChange={(e) => setForm({ ...form, defaultNameservers: e.target.value })} /></Field>
         <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.sandbox} onChange={(e) => setForm({ ...form, sandbox: e.target.checked })} />Sandbox</label>
       </div>
       <div className="mt-4 flex justify-end gap-2">
         <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-        <Button onClick={save} disabled={saving || !form.name.trim() || (!editingId && (isOpenprovider ? !form.username.trim() || !form.password : !form.authUserId.trim() || !form.apiKey.trim()))}>{saving ? "Saving..." : "Save"}</Button>
+        <Button onClick={save} disabled={saving || !form.name.trim() || (!editingId && (isOpenprovider ? !form.username.trim() || !form.password : isDynadot ? !form.apiKey.trim() || !form.apiSecret.trim() : !form.authUserId.trim() || !form.apiKey.trim()))}>{saving ? "Saving..." : "Save"}</Button>
       </div>
     </Dialog>
   </div>;

@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, Field, Select } from "@/components/ui/dialog";
 import { api } from "@/lib/api/client";
 
 type Server = { id: string; name: string; ipAddress?: string | null; username?: string };
+type AssignmentResult = { id: string; domain?: string; ok: boolean; error?: string };
 
 export function KeitaroAssignDialog({
   open,
@@ -24,6 +25,7 @@ export function KeitaroAssignDialog({
   groupHint?: string | null;
   onDone?: () => void;
 }) {
+  const queryClient = useQueryClient();
   const { data } = useQuery({
     queryKey: ["keitaro"],
     queryFn: () => api<{ servers: Server[] }>("/api/keitaro"),
@@ -37,6 +39,7 @@ export function KeitaroAssignDialog({
   const [serverId, setServerId] = useState("");
   const [buyerId, setBuyerId] = useState("");
   const [loading, setLoading] = useState(false);
+  const [failures, setFailures] = useState<AssignmentResult[]>([]);
   const server = (data?.servers ?? []).find((item) => item.id === serverId);
   const buyerList = buyers?.buyers ?? [];
   const selectedBuyer = buyerList.find((item) => item.id === buyerId);
@@ -56,25 +59,52 @@ export function KeitaroAssignDialog({
 
   async function submit() {
     setLoading(true);
+    setFailures([]);
     try {
       const path = domainIds.length === 1 ? `/api/domains/${domainIds[0]}/keitaro` : "/api/domains/bulk/keitaro";
       const body =
         domainIds.length === 1
           ? { serverId, group: group || null }
           : { domainIds, serverId, group: group || null };
-      await api(path, { method: "POST", body: JSON.stringify(body) });
+      if (domainIds.length > 1) {
+        const result = await api<{ results: AssignmentResult[] }>(path, { method: "POST", body: JSON.stringify(body) });
+        if (result.results.length !== domainIds.length || domainIds.some((id) => !result.results.some((item) => item.id === id))) {
+          throw new Error("Keitaro did not return a result for every selected domain");
+        }
+        const failed = result.results.filter((item) => !item.ok);
+        if (failed.length) {
+          setFailures(failed);
+          toast.error(`${result.results.length - failed.length} of ${domainIds.length} domains added to Keitaro; ${failed.length} failed`);
+          refreshDomains();
+          return;
+        }
+      } else {
+        await api(path, { method: "POST", body: JSON.stringify(body) });
+      }
       toast.success(domainIds.length === 1 ? "Added to Keitaro" : `${domainIds.length} domains added to Keitaro`);
       onClose();
       onDone?.();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Keitaro failed");
+      refreshDomains();
     } finally {
       setLoading(false);
     }
   }
 
+  function close() {
+    setFailures([]);
+    onClose();
+  }
+
+  function refreshDomains() {
+    queryClient.invalidateQueries({ queryKey: ["domains"] });
+    queryClient.invalidateQueries({ queryKey: ["domain"] });
+    queryClient.invalidateQueries({ queryKey: ["job"] });
+  }
+
   return (
-    <Dialog open={open} onClose={onClose} title="Add domain to Keitaro">
+    <Dialog open={open} onClose={close} title="Add domain to Keitaro">
       <div className="grid gap-3 text-sm">
         {domains?.length === 1 && (
           <div>
@@ -111,12 +141,17 @@ export function KeitaroAssignDialog({
             <div className="font-medium">{domainIds.length}</div>
           </div>
         )}
+        {failures.length > 0 && (
+          <div role="alert" className="max-h-48 space-y-1 overflow-auto text-destructive">
+            {failures.map((item) => <div key={item.id}><strong>{item.domain || "Domain"}:</strong> {item.error || "Failed to add to Keitaro"}</div>)}
+          </div>
+        )}
       </div>
       <div className="mt-4 flex justify-end gap-2">
-        <Button variant="outline" onClick={onClose}>
+        <Button variant="outline" onClick={close}>
           Cancel
         </Button>
-        <Button disabled={!serverId || loading} onClick={submit}>
+        <Button disabled={!serverId || loading || domainIds.length === 0} onClick={submit}>
           {loading ? "Adding..." : domainIds.length > 1 ? `Add ${domainIds.length} Domains` : "Add"}
         </Button>
       </div>

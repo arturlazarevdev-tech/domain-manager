@@ -110,7 +110,8 @@ export class OpenProviderAdapter implements DomainRegistrar {
     return { domain, registration, premium: result.is_premium, promo: result.is_promotion, listRegistration: result.is_promotion && list && list.currency === registration.currency && list.amount > registration.amount ? list : undefined };
   }
   async listTlds(): Promise<string[]> {
-    const results = await this.list<{ name: string }>("/tlds", { only_names: true, is_active: true });
+    // The live v1 API fails with only_names=true; full records work with pagination.
+    const results = await this.list<{ name: string }>("/tlds", { is_active: true });
     return [...new Set(results.map((row) => row.name.replace(/^\./, "")))].sort();
   }
   async registerDomain(data: RegisterDomainRequest): Promise<RegisterDomainResult> {

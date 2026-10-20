@@ -1,5 +1,5 @@
 import { jsonError } from "@/lib/errors";
-import { requireUser } from "@/lib/api/auth";
+import { requireUser, requireAdmin } from "@/lib/api/auth";
 import { encryptJson } from "@/lib/crypto";
 import { prisma } from "@/lib/db";
 import { last4, publicCloudflare } from "@/lib/serializers";
@@ -23,7 +23,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const { response } = await requireUser();
+  const { response } = await requireAdmin();
   if (response) return response;
   try {
     const body = cloudflareSchema.parse(await request.json());

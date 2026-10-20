@@ -10,6 +10,7 @@ datasource db {
 enum RegistrarProvider {
   regway
   openprovider
+  dynadot
 }
 
 enum DomainStatus {

@@ -16,17 +16,14 @@ import { api } from "@/lib/api/client";
 import { useCart } from "@/lib/cart";
 import { DomainPriceLabel } from "@/components/domain-price";
 import { formatMoney, parseDomainList, registrantLabel } from "@/lib/utils";
+import type { DomainPrice } from "@/lib/integrations/types";
 
 type Registrar = { id: string; name: string; provider: string };
 type Buyer = { id: string; name: string; stageName?: string | null; keitaroGroup?: string | null; isDefault?: boolean; group?: { id: string; name: string } | null };
 type CheckResult = {
   domain: string;
   available: boolean;
-  price?: {
-    registration: { amount: number; currency: string };
-    listRegistration?: { amount: number; currency: string };
-    promo?: boolean;
-  };
+  price?: DomainPrice;
 };
 
 export default function PurchasePage() {
@@ -150,6 +147,7 @@ export default function PurchasePage() {
     return selected.includes(domain) && (!check || check.available);
   });
   const total = buyable.reduce((sum, domain) => sum + (checkMap.get(domain)?.price?.registration.amount ?? 0), 0);
+  const estimatedTotal = buyable.some(domain => checkMap.get(domain)?.price?.estimated);
   const currency = buyable.map((domain) => checkMap.get(domain)?.price?.registration.currency).find(Boolean) ?? "USD";
   const visible = parsed.filter((domain) => {
     const check = checkMap.get(domain);
@@ -364,9 +362,10 @@ export default function PurchasePage() {
           <div>Group: {selectedGroup?.name ?? "—"}{recipientType === "group" ? " (group needs)" : ""}</div>
           <div>Cloudflare: {selectedCf ? `${selectedCf.name} · ${selectedCf.domainCount} domains` : "—"}</div>
           <div>Domains: {count}</div>
-          <div>Total: {formatMoney(total, currency)}</div>
+          <div>{estimatedTotal ? "Estimated total" : "Total"}: {formatMoney(total, currency)}</div>
           <div>Registrar balance: {balance?.balance ? formatMoney(balance.balance.amount, balance.balance.currency) : "—"}</div>
-          {balance?.balance && <div>After purchase: {formatMoney(balance.balance.amount - total, balance.balance.currency)}</div>}
+          {balance?.balance && <div>{estimatedTotal ? "Estimated balance after purchase" : "After purchase"}: {formatMoney(balance.balance.amount - total, balance.balance.currency)}</div>}
+          {estimatedTotal && <div className="text-muted-foreground">The current Regway registration price is unconfirmed. Recent charges shown in the list are historical purchases, not a guaranteed offer. The total uses the base catalog estimate; the purchase record uses the actual invoice when available.</div>}
           {!hasRegistrant && (
             <div className="rounded-md border border-amber-300/60 bg-amber-50 px-3 py-2 text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
               Add a{" "}
