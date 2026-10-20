@@ -27,15 +27,17 @@ export class KeitaroAdapter implements KeitaroProvider {
     }
   }
 
-  async addDomain(domain: string, options?: { group?: string | null }): Promise<KeitaroDomain> {
+  async addDomain(domain: string, options?: { group?: string | null; allowIndexing?: boolean }): Promise<KeitaroDomain> {
+    const allowIndexing = options?.allowIndexing ?? false;
     const existing = (await this.listDomains()).find((item) => item.name.toLowerCase() === domain.toLowerCase() && item.status !== "deleted");
-    if (existing) return options?.group !== undefined ? this.updateDomain(existing.id, options) : existing;
+    if (existing) return this.updateDomain(existing.id, { ...options, allowIndexing });
     const group = options?.group?.trim();
     const groupId = group ? await this.findOrCreateGroup(group) : undefined;
     const data = await this.request<KeitaroApiDomain | KeitaroApiDomain[]>("/domains", {
       method: "POST",
       body: JSON.stringify({
         name: domain,
+        allow_indexing: allowIndexing,
         ...(groupId ? { group_id: String(groupId) } : {}),
         ...(group ? { notes: group } : {}),
       }),
@@ -48,15 +50,18 @@ export class KeitaroAdapter implements KeitaroProvider {
     return mapKeitaroDomain(created);
   }
 
-  async updateDomain(id: string, options: { group?: string | null }): Promise<KeitaroDomain> {
+  async updateDomain(id: string, options: { group?: string | null; allowIndexing?: boolean }): Promise<KeitaroDomain> {
     const group = options.group?.trim();
-    const groupId = group ? await this.findOrCreateGroup(group) : 0;
-    if (groupId === null) {
+    const groupId = options.group === undefined ? undefined : group ? await this.findOrCreateGroup(group) : 0;
+    if (groupId === null && options.allowIndexing === undefined) {
       // Keep the local buyer group without overwriting existing remote notes or settings.
       return mapKeitaroDomain(await this.request<KeitaroApiDomain>(`/domains/${encodeURIComponent(id)}`));
     }
     const data = await this.request<KeitaroApiDomain>(`/domains/${encodeURIComponent(id)}`, {
-      method: "PUT", body: JSON.stringify({ group_id: String(groupId) }),
+      method: "PUT", body: JSON.stringify({
+        ...(groupId !== null && groupId !== undefined ? { group_id: String(groupId) } : {}),
+        ...(options.allowIndexing !== undefined ? { allow_indexing: options.allowIndexing } : {}),
+      }),
     });
     return mapKeitaroDomain(data);
   }

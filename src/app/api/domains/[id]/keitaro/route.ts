@@ -10,8 +10,8 @@ export async function POST(request: Request, ctx: Ctx) {
   if (response) return response;
   try {
     const { id } = await ctx.params;
-    const body = z.object({ serverId: z.string(), group: z.string().nullable().optional() }).parse(await request.json());
-    const result = await addDomainToKeitaro(id, body.serverId, body.group);
+    const body = z.object({ serverId: z.string(), group: z.string().nullable().optional(), allowIndexing: z.boolean().default(false) }).parse(await request.json());
+    const result = await addDomainToKeitaro(id, body.serverId, body.group, undefined, body.allowIndexing);
     return Response.json({ keitaro: result });
   } catch (error) {
     return jsonError(error);

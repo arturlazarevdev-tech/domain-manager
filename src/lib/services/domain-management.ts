@@ -109,7 +109,7 @@ async function configure(id: string, input: Management) {
     } else if (domain.cloudflare) throw new AppError({ message: "Choose the current Cloudflare account to update this domain" });
     domain = await prisma.domain.findUniqueOrThrow({ where: { id }, include: { cloudflare: true } });
     if (input.serverType === "keitaro") {
-      if (input.mode === "configure") await addDomainToKeitaro(id, input.serverId!, input.keitaroGroup, input.serverIp);
+      if (input.mode === "configure") await addDomainToKeitaro(id, input.serverId!, input.keitaroGroup, input.serverIp, input.allowIndexing);
       else {
         const { adapter, server } = await getKeitaro(input.serverId!);
         const remote = (await adapter.listDomains()).find((row) => row.name.toLowerCase() === domain.domain && row.status !== "deleted");

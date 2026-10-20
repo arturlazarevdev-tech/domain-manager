@@ -204,7 +204,7 @@ export async function pointDomainDns(domainId: string, ip: string) {
   return prisma.domainDnsRecord.findMany({ where: { domainId } });
 }
 
-export async function addDomainToKeitaro(domainId: string, serverId: string, group?: string | null, overrideIp?: string | null) {
+export async function addDomainToKeitaro(domainId: string, serverId: string, group?: string | null, overrideIp?: string | null, allowIndexing = false) {
   const domain = await prisma.domain.findUnique({
     where: { id: domainId },
     include: { buyer: true, cloudflare: true },
@@ -236,7 +236,7 @@ export async function addDomainToKeitaro(domainId: string, serverId: string, gro
   });
 
   try {
-    const created = await adapter.addDomain(domain.domain, { group: groupName });
+    const created = await adapter.addDomain(domain.domain, { group: groupName, allowIndexing });
     // Preserve the remote ID even if the following DNS step needs a retry.
     await prisma.domainKeitaro.update({ where: { id: record.id }, data: { keitaroDomainId: created.id } });
     await pointDomainDns(domainId, ip);

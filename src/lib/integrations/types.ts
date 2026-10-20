@@ -126,9 +126,9 @@ export type KeitaroDomain = {
 
 export interface KeitaroProvider {
   testConnection(): Promise<{ ok: true } | { ok: false; message: string }>;
-  addDomain(domain: string, options?: { group?: string | null }): Promise<KeitaroDomain>;
+  addDomain(domain: string, options?: { group?: string | null; allowIndexing?: boolean }): Promise<KeitaroDomain>;
   listDomains(): Promise<KeitaroDomain[]>;
-  updateDomain(id: string, options: { group?: string | null }): Promise<KeitaroDomain>;
+  updateDomain(id: string, options: { group?: string | null; allowIndexing?: boolean }): Promise<KeitaroDomain>;
 }
 
 export type HestiaDomain = {

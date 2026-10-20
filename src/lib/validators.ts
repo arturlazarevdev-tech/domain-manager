@@ -148,6 +148,7 @@ export const domainManagementSchema = z.object({
   serverId: z.string().min(1).nullable().optional(),
   serverIp: z.string().trim().optional(),
   keitaroGroup: z.string().trim().max(128).optional(),
+  allowIndexing: z.boolean().default(false),
   hestiaUser: z.string().trim().max(64).optional(),
   mode: z.enum(["existing", "configure"]),
 }).refine((body) => !(body.buyerId && body.groupId), { message: "Select either a buyer or a group" })

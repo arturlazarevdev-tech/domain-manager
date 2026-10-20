@@ -38,6 +38,7 @@ export function KeitaroAssignDialog({
   });
   const [serverId, setServerId] = useState("");
   const [buyerId, setBuyerId] = useState("");
+  const [allowIndexing, setAllowIndexing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [failures, setFailures] = useState<AssignmentResult[]>([]);
   const server = (data?.servers ?? []).find((item) => item.id === serverId);
@@ -64,8 +65,8 @@ export function KeitaroAssignDialog({
       const path = domainIds.length === 1 ? `/api/domains/${domainIds[0]}/keitaro` : "/api/domains/bulk/keitaro";
       const body =
         domainIds.length === 1
-          ? { serverId, group: group || null }
-          : { domainIds, serverId, group: group || null };
+          ? { serverId, group: group || null, allowIndexing }
+          : { domainIds, serverId, group: group || null, allowIndexing };
       if (domainIds.length > 1) {
         const result = await api<{ results: AssignmentResult[] }>(path, { method: "POST", body: JSON.stringify(body) });
         if (result.results.length !== domainIds.length || domainIds.some((id) => !result.results.some((item) => item.id === id))) {
@@ -82,6 +83,7 @@ export function KeitaroAssignDialog({
         await api(path, { method: "POST", body: JSON.stringify(body) });
       }
       toast.success(domainIds.length === 1 ? "Added to Keitaro" : `${domainIds.length} domains added to Keitaro`);
+      setAllowIndexing(false);
       onClose();
       onDone?.();
     } catch (error) {
@@ -93,6 +95,7 @@ export function KeitaroAssignDialog({
   }
 
   function close() {
+    setAllowIndexing(false);
     setFailures([]);
     onClose();
   }
@@ -135,6 +138,10 @@ export function KeitaroAssignDialog({
           <div className="text-muted-foreground">IP</div>
           <div className="font-medium">{server?.ipAddress || "Set IP in Settings → Servers"}</div>
         </div>
+        <label className="flex items-center gap-2">
+          <input type="checkbox" checked={allowIndexing} onChange={(e) => setAllowIndexing(e.target.checked)} disabled={loading} />
+          Allow search engine indexing
+        </label>
         {domainIds.length > 1 && (
           <div>
             <div className="text-muted-foreground">Domains</div>

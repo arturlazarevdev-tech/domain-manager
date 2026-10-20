@@ -44,6 +44,7 @@ export function DomainManagementDialog({ domain, onClose }: { domain?: ManagedDo
     serverType: domain?.keitaro ? "keitaro" : domain?.hestia ? "hestia" : "none", serverId: domain?.keitaro?.server.id ?? domain?.hestia?.server.id ?? "",
     serverIp: domain?.keitaro?.serverIp ?? domain?.hestia?.ip ?? domain?.dns?.ip ?? "", keitaroGroup: domain?.keitaro?.groupName ?? domain?.buyer?.name ?? "",
     hestiaUser: domain?.hestia?.webUser ?? "",
+    allowIndexing: false,
   });
   const [saving, setSaving] = useState(false);
   const servers = form.serverType === "keitaro" ? kt.data?.servers ?? [] : hs.data?.servers ?? [];
@@ -57,7 +58,7 @@ export function DomainManagementDialog({ domain, onClose }: { domain?: ManagedDo
           domain: form.domain, registrarId: form.registrarId, buyerId: type === "buyer" ? recipientId : null, groupId: type === "group" ? recipientId : null,
           purchasePrice: Number(form.purchasePrice), currency: form.currency.toUpperCase(), purchasedAt,
           cloudflareAccountId: form.cloudflareAccountId || null, mode: form.mode, serverType: form.serverType, serverId: form.serverId || null,
-          serverIp: form.serverIp, keitaroGroup: form.keitaroGroup, hestiaUser: form.hestiaUser,
+          serverIp: form.serverIp, keitaroGroup: form.keitaroGroup, hestiaUser: form.hestiaUser, allowIndexing: form.allowIndexing,
         }),
       });
       refresh();
@@ -86,6 +87,7 @@ export function DomainManagementDialog({ domain, onClose }: { domain?: ManagedDo
       {form.serverType !== "none" && <Field label="Server"><Select value={form.serverId} onChange={(e) => { const server = servers.find((row) => row.id === e.target.value); setForm({ ...form, serverId: e.target.value, serverIp: server?.ipAddress ?? "", hestiaUser: server?.username ?? "" }); }}><option value="">Select server</option>{servers.map((row) => <option key={row.id} value={row.id}>{row.name}</option>)}</Select></Field>}
       <Field label="Server IP"><Input placeholder="Uses the selected server IP when blank" value={form.serverIp} onChange={(e) => setForm({ ...form, serverIp: e.target.value })} /></Field>
       {form.serverType === "keitaro" && <Field label="Keitaro domain group"><Input value={form.keitaroGroup} onChange={(e) => setForm({ ...form, keitaroGroup: e.target.value })} placeholder="Buyer name or custom group" /></Field>}
+      {form.serverType === "keitaro" && form.mode === "configure" && <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.allowIndexing} onChange={(e) => setForm({ ...form, allowIndexing: e.target.checked })} />Allow search engine indexing</label>}
       {form.serverType === "hestia" && <Field label="Hestia user"><Input value={form.hestiaUser} onChange={(e) => setForm({ ...form, hestiaUser: e.target.value })} placeholder="Uses the server's configured user" /></Field>}
     </div>
     <p className="mt-3 text-xs text-muted-foreground">{form.mode === "existing" ? "Records the selected settings and reads existing Cloudflare/Keitaro data. It does not change DNS, nameservers or the server." : "Updates DNS to the selected IP and adds or updates the domain on the destination server. A new Cloudflare account also updates nameservers at the registrar."}</p>

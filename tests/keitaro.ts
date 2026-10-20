@@ -3,7 +3,7 @@ import { KeitaroAdapter } from "../src/lib/integrations/keitaro/adapter";
 import { AppError, detailedErrorMessage } from "../src/lib/errors";
 
 const originalFetch = globalThis.fetch;
-type RemoteDomain = { id: number; name: string; state: string; notes?: string; group?: string };
+type RemoteDomain = { id: number; name: string; state: string; notes?: string; group?: string; allow_indexing?: boolean };
 const domains: RemoteDomain[] = [];
 let mode: "supported" | "legacy" | "forbidden" | "network" | "malformed" | "malformed-create" = "legacy";
 let arrayResponse = true, groupsExist = false;
@@ -25,13 +25,13 @@ globalThis.fetch = (async (input, init) => {
   }
   if (url.pathname.endsWith("/domains")) {
     if (method === "GET") return Response.json(mode === "malformed" ? {} : domains);
-    const domain = { id: domains.length + 1, name: body.name, state: "active", notes: body.notes };
+    const domain = { id: domains.length + 1, name: body.name, state: "active", notes: body.notes, allow_indexing: body.allow_indexing };
     domains.push(domain);
     return Response.json(mode === "malformed-create" ? [{}] : arrayResponse ? [domain] : domain);
   }
   const id = Number(url.pathname.split("/").pop());
   const domain = domains.find(item => item.id === id);
-  if (domain) return Response.json(domain);
+  if (domain) { if (method === "PUT") Object.assign(domain, body); return Response.json(domain); }
   throw new Error(`Unexpected request: ${method} ${url.pathname}`);
 }) as typeof fetch;
 
@@ -43,10 +43,12 @@ async function main() {
   const create = writes.find(item => item.path.endsWith("/domains"))!;
   assert(!("group_id" in create.body), "unsupported groups are omitted");
   assert.equal(create.body.notes, "KIT");
+  assert.equal(create.body.allow_indexing, false, "New domains forbid indexing by default");
   const creations = writes.filter(item => item.path.endsWith("/domains")).length;
   await legacy.addDomain("first.example", { group: "KIT" });
   assert.equal(writes.filter(item => item.path.endsWith("/domains")).length, creations, "retries do not duplicate domains");
-  assert(!writes.some(item => /\/domains\/\d+$/.test(item.path)), "legacy retries preserve remote notes and settings");
+  assert.deepEqual(writes.findLast(item => item.path.endsWith("/domains/1"))?.body, { allow_indexing: false }, "Legacy retries update indexing without replacing notes or unsupported groups");
+  assert.equal(domains[0].notes, "KIT");
   await legacy.addDomain("second.example", { group: "KIT" });
   assert.equal(writes.filter(item => item.path.endsWith("/groups")).length, 1, "unsupported capability is remembered by the adapter");
   for (mode of ["forbidden", "network"] as const) {
@@ -62,6 +64,15 @@ async function main() {
   assert.equal(writes.findLast(item => item.path.endsWith("/domains"))!.body.group_id, "8");
   await supported.addDomain("third.example", { group: "KIT" });
   assert.equal(writes.findLast(item => item.path.endsWith("/domains/3"))!.body.group_id, "8", "supported groups remain editable");
+  await legacy.addDomain("first.example", { group: "KIT", allowIndexing: true });
+  assert.equal(domains[0].allow_indexing, true, "Opt-in also applies to existing domains");
+  await legacy.addDomain("first.example", { group: "KIT", allowIndexing: false });
+  assert.equal(domains[0].allow_indexing, false, "Existing domains can turn indexing off");
+  assert.equal(domains[0].notes, "KIT");
+  await supported.addDomain("indexed.example", { allowIndexing: true });
+  assert.equal(writes.findLast(item => item.path.endsWith("/domains"))!.body.allow_indexing, true);
+  await supported.updateDomain("3", { group: "KIT" });
+  assert(!("allow_indexing" in writes.findLast(item => item.path.endsWith("/domains/3"))!.body), "Group-only edits preserve indexing");
   mode = "malformed";
   await assert.rejects(adapter().listDomains(), /invalid domain list/);
   mode = "malformed-create";
