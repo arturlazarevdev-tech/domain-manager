@@ -92,6 +92,25 @@ export class DynadotAdapter implements DomainRegistrar {
     if (!checked.price) throw fail(`One-year registration price in ${this.currency} was not returned for ${checked.domain}.`);
     return checked.price;
   }
+  async suggestDomains(keyword: string, tld: string, amount: number) {
+    const seed = domainName(`${keyword}.${tld.replace(/^\./, "")}`);
+    const zone = seed.slice(seed.indexOf(".") + 1);
+    const response = await this.client.request<{ domain_list?: Array<{ domain_name?: string }> }>(
+      `/domains/${encodeURIComponent(seed)}/suggestion_search`, "GET",
+      { tlds: zone, max_count: Math.min(100, Math.max(1, amount)), show_price: false },
+    );
+    if (!Array.isArray(response.domain_list)) throw fail("Invalid suggestions response.");
+    const names = new Set<string>();
+    for (const row of response.domain_list) {
+      if (!row.domain_name) continue;
+      try {
+        const name = domainName(row.domain_name);
+        // Keep only single labels in the requested zone, including multi-part TLDs.
+        if (name.endsWith(`.${zone}`) && !name.slice(0, -zone.length - 1).includes(".")) names.add(name);
+      } catch { /* Ignore malformed provider suggestions. */ }
+    }
+    return [...names];
+  }
   async listTlds() {
     const names = new Set<string>();
     for (let page = 1; page <= 1000; page++) {

@@ -12,7 +12,7 @@ export const generateDomainsSchema = z.object({
   minLength: z.number().int().min(3).max(20).default(5),
   maxLength: z.number().int().min(3).max(24).default(12),
   keyword: z.string().optional(),
-  type: z.enum(["random", "pronounceable", "dictionary", "keyword", "ai"]).default("pronounceable"),
+  type: z.enum(["random", "pronounceable", "dictionary", "keyword", "ai", "suggestions"]).default("pronounceable"),
   exclude: z.array(z.string()).optional(),
   filters: z
     .object({
@@ -25,6 +25,8 @@ export const generateDomainsSchema = z.object({
       minLength: z.number().optional(),
     })
     .optional(),
+}).refine(input => input.minLength <= input.maxLength, {
+  message: "Minimum length cannot exceed maximum length.", path: ["minLength"],
 });
 
 export type GenerateDomainsInput = z.infer<typeof generateDomainsSchema>;
@@ -40,6 +42,7 @@ export async function generateAvailableDomains(
   registrar: DomainRegistrar,
   input: GenerateDomainsInput,
 ) {
+  if (input.type === "suggestions") return generateSuggestedDomains(registrar, input);
   const tld = input.tld.replace(/^\./, "").toLowerCase();
   const keyword = input.keyword?.trim().toLowerCase().replace(/[^a-z0-9]/g, "") || input.filters?.startsWith;
   const filters: GeneratorFilters = {
@@ -78,7 +81,7 @@ export async function generateAvailableDomains(
     const checked = await registrar.checkDomains(candidates);
     const freshAvailable = checked.filter((item) => item.available);
     await Promise.all(
-      freshAvailable.map(async (item) => {
+      freshAvailable.filter(item => !item.price).map(async (item) => {
         try {
           item.price = await registrar.getPrice(item.domain);
         } catch {
@@ -102,6 +105,31 @@ export async function generateAvailableDomains(
     generated: found.length + taken.length,
     timedOut: found.length < wanted,
   };
+}
+
+async function generateSuggestedDomains(registrar: DomainRegistrar, input: GenerateDomainsInput) {
+  if (!registrar.suggestDomains) throw new AppError({ message: "This registrar does not support domain suggestions.", status: 400 });
+  const keyword = input.keyword?.trim().toLowerCase();
+  if (!keyword || !/^[a-z0-9][a-z0-9-]{0,62}$/.test(keyword)) {
+    throw new AppError({ message: "Enter a keyword using Latin letters, numbers or hyphens (up to 63 characters).", status: 400 });
+  }
+  const tld = input.tld.replace(/^\./, "").toLowerCase();
+  const excluded = new Set((input.exclude ?? []).map(name => name.toLowerCase()));
+  const filters: GeneratorFilters = { noNumbers: true, noHyphens: true, lettersOnly: true, ...input.filters, minLength: input.minLength, maxLength: input.maxLength };
+  const candidates = [...new Set(await registrar.suggestDomains(keyword, tld, 100))].filter(name =>
+    !excluded.has(name) && name.endsWith(`.${tld}`) && matchesFilters(name.slice(0, -tld.length - 1), filters),
+  );
+  const available: DomainAvailability[] = [], taken: DomainAvailability[] = [];
+  const started = Date.now();
+  for (let i = 0; i < candidates.length && available.length < input.amount && Date.now() - started < 40_000; i += 10) {
+    const checked = await registrar.checkDomains(candidates.slice(i, i + 10));
+    // Suggestions alone do not confirm availability or the purchase price.
+    for (const item of checked) {
+      if (item.available) available.push(item);
+      else taken.push(item);
+    }
+  }
+  return { available: available.slice(0, input.amount), taken, generated: available.length + taken.length, timedOut: available.length < input.amount };
 }
 
 async function makeName(
@@ -180,6 +208,7 @@ async function generateAiName(min: number, max: number) {
 export { mapWithConcurrency };
 
 export async function generateCandidateNames(input: GenerateDomainsInput) {
+  if (input.type === "suggestions") throw new AppError({ message: "Use Find available for registrar suggestions.", status: 400 });
   const tld = input.tld.replace(/^\./, "").toLowerCase();
   const keyword = input.keyword?.trim().toLowerCase().replace(/[^a-z0-9]/g, "") || input.filters?.startsWith;
   const filters: GeneratorFilters = {

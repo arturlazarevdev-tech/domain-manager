@@ -388,6 +388,7 @@ export default function PurchasePage() {
         open={generatorOpen}
         onClose={() => setGeneratorOpen(false)}
         registrarId={registrarId}
+        registrarProvider={selectedRegistrar?.provider}
         onUse={useGenerated}
       />
     </div>

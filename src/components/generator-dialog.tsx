@@ -27,11 +27,13 @@ export function GeneratorDialog({
   open,
   onClose,
   registrarId,
+  registrarProvider,
   onUse,
 }: {
   open: boolean;
   onClose: () => void;
   registrarId?: string;
+  registrarProvider?: string;
   onUse: (domains: string[]) => void;
 }) {
   const { data: tlds } = useQuery({
@@ -44,7 +46,8 @@ export function GeneratorDialog({
   const [amount, setAmount] = useState(10);
   const [minLength, setMinLength] = useState(8);
   const [maxLength, setMaxLength] = useState(12);
-  const [type, setType] = useState<"pronounceable" | "random" | "keyword">("pronounceable");
+  const [type, setType] = useState<"pronounceable" | "random" | "keyword" | "suggestions">("pronounceable");
+  const generationType = type === "suggestions" && registrarProvider !== "dynadot" ? "pronounceable" : type;
   const [lettersOnly, setLettersOnly] = useState(true);
   const [noNumbers, setNoNumbers] = useState(true);
   const [noHyphens, setNoHyphens] = useState(true);
@@ -64,10 +67,10 @@ export function GeneratorDialog({
       minLength,
       maxLength,
       keyword: keyword.trim() || undefined,
-      type: type === "keyword" ? "keyword" : type,
+      type: generationType,
       filters: { lettersOnly, noNumbers, noHyphens },
     }),
-    [registrarId, tld, amount, minLength, maxLength, keyword, type, lettersOnly, noNumbers, noHyphens],
+    [registrarId, tld, amount, minLength, maxLength, keyword, generationType, lettersOnly, noNumbers, noHyphens],
   );
 
   async function generate(more = false) {
@@ -100,9 +103,9 @@ export function GeneratorDialog({
       ];
       setExclude((curr) => (more ? [...curr, ...seen] : seen));
       if (!next.length) {
-        toast.error("No available names yet. Increase length or try Generate More.");
+        toast.error(generationType === "suggestions" ? "No suggestions match. Change the keyword or length filters." : "No available names yet. Increase length or try Generate More.");
       } else if (data.timedOut) {
-        toast.info(`Found ${next.length} of ${amount}. Try longer names or Generate More.`);
+        toast.info(generationType === "suggestions" ? `Found ${next.length} of ${amount}. Change the keyword or widen the length filters for more.` : `Found ${next.length} of ${amount}. Try longer names or Generate More.`);
       }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Generate failed");
@@ -122,8 +125,8 @@ export function GeneratorDialog({
     <Dialog open={open} onClose={onClose} title="Generate Domains" className="max-w-3xl">
       <div className="grid gap-4 lg:grid-cols-[260px_1fr]">
         <div className="grid gap-3">
-          <Field label="Keyword">
-            <Input value={keyword} placeholder="Optional — kit, win, brand" onChange={(e) => setKeyword(e.target.value)} />
+          <Field label={generationType === "suggestions" ? "Keyword (required)" : "Keyword"}>
+            <Input value={keyword} placeholder={generationType === "suggestions" ? "e.g. travel, nova, cobalt" : "Optional — kit, win, brand"} onChange={(e) => setKeyword(e.target.value)} />
           </Field>
           <Field label="Domain zone">
             <TldCombobox value={tld} tlds={zoneList} onChange={setTld} />
@@ -134,12 +137,13 @@ export function GeneratorDialog({
           <Field label="Style">
             <select
               className="h-9 w-full rounded-md border bg-card px-3 text-sm"
-              value={type}
+              value={generationType}
               onChange={(e) => setType(e.target.value as typeof type)}
             >
               <option value="pronounceable">Pronounceable</option>
               <option value="random">Random</option>
               <option value="keyword">Keyword based</option>
+              {registrarProvider === "dynadot" && <option value="suggestions">Dynadot suggestions</option>}
             </select>
           </Field>
           <div className="grid grid-cols-2 gap-3">
@@ -162,11 +166,11 @@ export function GeneratorDialog({
             <input type="checkbox" checked={noHyphens} onChange={(e) => setNoHyphens(e.target.checked)} />
             No hyphens
           </label>
-          <Button onClick={() => generate(false)} disabled={loading}>
+          <Button onClick={() => generate(false)} disabled={loading || (generationType === "suggestions" && !keyword.trim())}>
             {loading ? "Finding available..." : "Find available"}
           </Button>
           <p className="text-xs text-muted-foreground">
-            Short names are often taken. The generator keeps checking until it finds the requested number.
+            {generationType === "suggestions" ? "Dynadot suggests names related to your keyword. Availability and first-year prices are checked before showing results." : "Short names are often taken. The generator keeps checking until it finds the requested number."}
           </p>
         </div>
         <div>
@@ -222,7 +226,7 @@ export function GeneratorDialog({
             >
               Use Available Domains
             </Button>
-            <Button variant="outline" disabled={loading} onClick={() => generate(true)}>
+            <Button variant="outline" disabled={loading || (generationType === "suggestions" && !keyword.trim())} onClick={() => generate(true)}>
               Generate More
             </Button>
           </div>

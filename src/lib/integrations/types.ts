@@ -79,6 +79,7 @@ export interface DomainRegistrar {
   checkDomains(domains: string[]): Promise<DomainAvailability[]>;
   getPrice(domain: string): Promise<DomainPrice>;
   listTlds(): Promise<string[]>;
+  suggestDomains?(keyword: string, tld: string, amount: number): Promise<string[]>;
   registerDomain(data: RegisterDomainRequest): Promise<RegisterDomainResult>;
   setNameservers(domain: string, nameservers: string[]): Promise<void>;
   getDomain(domain: string): Promise<DomainInfo>;
