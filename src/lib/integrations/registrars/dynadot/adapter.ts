@@ -155,9 +155,10 @@ export class DynadotAdapter implements DomainRegistrar {
       } catch (error) {
         // Newly registered domains can take a few seconds to reach the nameserver API.
         // Retry only this idempotent update, never the registration/payment request.
-        const missingDomain = error instanceof AppError && error.provider === "dynadot" &&
-          error.message.toLowerCase().includes(`can not find the ${domain} in the account`);
-        if (!missingDomain || attempt >= waits.length) throw error;
+        const initializing = error instanceof AppError && error.provider === "dynadot" &&
+          (error.message.toLowerCase().includes(`can not find the ${domain} in the account`) ||
+            error.message.toLowerCase().includes("domain initialization is still in progress"));
+        if (!initializing || attempt >= waits.length) throw error;
         await delay(waits[attempt]);
       }
     }

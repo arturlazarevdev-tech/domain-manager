@@ -101,6 +101,35 @@ async function main() {
   assert.equal(pendingRegistration.registrationStatus, "pending");
   assert.equal(calls.filter(c => c.url.pathname.endsWith('/customers')).length, before);
 
+  // Read back uncertain registrations instead of replaying a payment.
+  let registrationPosts = 0;
+  for (const status of ['ACT', 'REQ', 'FAI']) {
+    handler = call => {
+      if (call.method === 'POST') { registrationPosts++; throw new TypeError('Response lost'); }
+      if (call.url.pathname === '/v1/domains') return { results: [{ id: 125, domain: { name: 'example', extension: 'com' } }] };
+      assert.equal(call.url.pathname, '/v1/domains/125');
+      return { id: 125, domain: { name: 'example', extension: 'com' }, status, name_servers: [{ name: 'ns1.example.net' }, { name: 'ns2.example.net' }] };
+    };
+    const order = adapter.registerDomain({ domain: 'example.com', contact, extra: { contactId: 'MS123456-US' } });
+    if (status === 'FAI') await assert.rejects(order, /Registration response was not received/);
+    else {
+      const confirmed = await order;
+      assert.equal(confirmed.registrationStatus, status === 'ACT' ? 'purchased' : 'pending');
+      assert.equal(confirmed.orderId, '125');
+      assert.deepEqual(confirmed.nameservers, ['ns1.example.net', 'ns2.example.net']);
+    }
+  }
+  assert.equal(registrationPosts, 3, 'Exactly one registration request per attempt despite the lost responses');
+  let searches = 0;
+  handler = call => {
+    if (call.method === 'POST') { registrationPosts++; throw new TypeError('Response lost'); }
+    if (call.url.pathname === '/v1/domains') { searches++; return { results: searches === 1 ? [] : [{ id: 126, domain: { name: 'example', extension: 'com' } }] }; }
+    return { id: 126, domain: { name: 'example', extension: 'com' }, status: 'ACT' };
+  };
+  assert.equal((await adapter.registerDomain({ domain: 'example.com', contact, extra: { contactId: 'MS123456-US' } })).orderId, '126');
+  assert.equal(searches, 2, 'Poll read-only when the new domain is not yet visible');
+  assert.equal(registrationPosts, 4, 'Polling never resubmits registration');
+
   // Nonzero code in an HTTP 200 still fails, and credentials are redacted.
   handler = () => reply({}, 112, 200, 'Rejected test-password');
   await assert.rejects(adapter.getBalance(), error => error instanceof Error && error.message.includes('Rejected [redacted]') && !error.message.includes('test-password'));

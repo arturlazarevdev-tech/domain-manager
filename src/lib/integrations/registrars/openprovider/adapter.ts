@@ -1,4 +1,5 @@
 import { domainToASCII } from "node:url";
+import { setTimeout as delay } from "node:timers/promises";
 import { AppError } from "@/lib/errors";
 import { chunk } from "@/lib/concurrency";
 import { splitDomain } from "@/lib/utils";
@@ -122,12 +123,30 @@ export class OpenProviderAdapter implements DomainRegistrar {
       ? data.extra.contactId : (await this.client.request<{ handle: string }>("/customers", "POST", openproviderContact(data.contact))).handle;
     if (!handle) throw fail("Customer creation returned no contact handle.");
     const nameservers = data.nameservers?.length ? data.nameservers : this.defaultNameservers;
-    const response = await this.client.request<RemoteDomain>("/domains", "POST", {
-      domain: { name, extension }, period: years, owner_handle: handle, admin_handle: handle, tech_handle: handle, billing_handle: handle,
-      autorenew: "off", is_dnssec_enabled: false,
-      additional_data: { consent_for_publishing: "0" },
-      ...(nameservers.length >= 2 ? { name_servers: nameservers.map((name) => ({ name })) } : { ns_group: "dns-openprovider" }),
-    });
+    let response: RemoteDomain;
+    try {
+      response = await this.client.request<RemoteDomain>("/domains", "POST", {
+        domain: { name, extension }, period: years, owner_handle: handle, admin_handle: handle, tech_handle: handle, billing_handle: handle,
+        autorenew: "off", is_dnssec_enabled: false,
+        additional_data: { consent_for_publishing: "0" },
+        ...(nameservers.length >= 2 ? { name_servers: nameservers.map((name) => ({ name })) } : { ns_group: "dns-openprovider" }),
+      });
+    } catch (error) {
+      if (!(error instanceof AppError) || error.provider !== "openprovider" || !error.message.includes("Registration response was not received")) throw error;
+      // A timeout can happen after the registry accepted the order. Read it back;
+      // never replay a registration/payment request to discover its outcome.
+      for (const wait of [0, 2000, 5000, 10000]) {
+        if (wait) await delay(wait);
+        let existing: DomainInfo;
+        try { existing = await this.getDomain(domain); } catch { continue; }
+        if (existing.domain === domain && existing.orderId && (existing.status === "ACT" || existing.status === "REQ")) {
+          return { ...existing, registrationStatus: existing.status === "ACT" ? "purchased" : "pending", externalCustomerId: handle, externalContactId: handle };
+        }
+        // A failed or deleted record does not confirm this registration.
+        throw error;
+      }
+      throw error;
+    }
     if (!response.id) throw fail("Registration returned no domain ID. Check Openprovider before retrying.");
     const info = mapDomain(response, domain);
     return { ...info, registrationStatus: response.status === "ACT" ? "purchased" : "pending", nameservers: nameservers.length >= 2 ? nameservers : undefined, externalCustomerId: handle, externalContactId: handle };

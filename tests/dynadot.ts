@@ -83,6 +83,11 @@ async function main() {
  assert.equal(nsAttempts,2,'Retry the nameserver update while a newly registered domain becomes visible');
  assert.equal(calls.filter(c=>c.method==='POST'&&c.url.pathname.endsWith('/register')).length,registrationsBefore,'Never register again when retrying nameservers');
  nsAttempts=0;
+ handler=c=>{assert.equal(c.method,'PUT');nsAttempts++;return nsAttempts===1?Response.json({code:400,error:{description:'Can not set nameserver to domain. Try again later.new.digital: Domain initialization is still in progress. Please try again later.'}},{status:400}):Response.json({code:200,message:'Success'});};
+ await a.setNameservers('new.digital',['beth.ns.cloudflare.com','koa.ns.cloudflare.com']);
+ assert.equal(nsAttempts,2,'Retry initialization-in-progress responses without buying the domain again');
+ assert.equal(calls.filter(c=>c.method==='POST'&&c.url.pathname.endsWith('/register')).length,registrationsBefore);
+ nsAttempts=0;
  handler=()=>{nsAttempts++;return Response.json({code:403,error:{description:'The domain is not allowed to change nameservers.'}},{status:403});};
  await assert.rejects(a.setNameservers('new.digital',['beth.ns.cloudflare.com','koa.ns.cloudflare.com']),/not allowed/);
  assert.equal(nsAttempts,1,'Permanent errors are not retried');

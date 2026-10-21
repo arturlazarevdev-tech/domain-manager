@@ -56,13 +56,14 @@ export class OpenproviderClient {
       }
     }
     let response: Response;
+    const registration = method === "POST" && path === "/domains";
     try {
       response = await fetch(url, {
         method, headers: { "Content-Type": "application/json", Accept: "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-        body: method === "GET" ? undefined : JSON.stringify(data ?? {}), cache: "no-store", signal: AbortSignal.timeout(30000),
+        body: method === "GET" ? undefined : JSON.stringify(data ?? {}), cache: "no-store", signal: AbortSignal.timeout(registration ? 90000 : 30000),
       });
     } catch {
-      throw this.error(method === "POST" && path === "/domains"
+      throw this.error(registration
         ? "Registration response was not received. Check the domain in Openprovider before retrying."
         : "API request failed or timed out");
     }
