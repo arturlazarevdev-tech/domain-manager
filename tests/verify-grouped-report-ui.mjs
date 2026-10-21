@@ -66,10 +66,23 @@ async function main() {
   await call('Page.navigate', { url: base + '/domains/purchased' });
   const report = `document.querySelector('section[aria-label="Spending report"]')`;
   await until(`${report}?.innerText.includes('$9.74')`);
+  const toggle = async label => evaluate(`${report}.querySelectorAll('label')[${JSON.stringify({ Registrar: 0, 'Buyer group': 1, Buyer: 2 }[label])}].querySelector('input').click()`);
+  const checks = () => evaluate(`Array.from(${report}.querySelectorAll('input[type="checkbox"]')).map(input=>input.checked)`);
+  assert.deepEqual(await checks(), [false, false, false], 'New browsers start with all grouping disabled');
+  await toggle('Registrar'); await toggle('Buyer group'); await toggle('Buyer');
+  await until(`${report}.innerText.includes('$5.75')`);
+  await call('Page.reload');
+  await until(`${report}?.innerText.includes('$5.75')`);
+  assert.deepEqual(await checks(), [true, true, true], 'Selected levels survive a reload');
+  await toggle('Registrar'); await toggle('Buyer group'); await toggle('Buyer');
+  await call('Page.reload');
+  await until(`${report}?.innerText.includes('$9.74')`);
+  assert.deepEqual(await checks(), [false, false, false], 'An empty selection also survives a reload');
+  await toggle('Registrar'); await toggle('Buyer group'); await toggle('Buyer');
+  await until(`${report}.innerText.includes('$5.75')`);
   const text = await evaluate(`${report}.innerText`);
   assert(text.includes('Dynadot') && text.includes('Openprovider') && text.includes('Alex') && text.includes('Kate') && text.includes('Group needs'));
   assert(text.includes('$5.75') && text.includes('$3.99'), 'Registrar subtotals are shown');
-  const toggle = async label => evaluate(`${report}.querySelectorAll('label')[${JSON.stringify({ Registrar: 0, 'Buyer group': 1, Buyer: 2 }[label])}].querySelector('input').click()`);
   await toggle('Registrar');
   await until(`${report}.innerText.includes('$6.49')`);
   assert((await evaluate(`${report}.innerText`)).includes('Buyer group: KIT'));
@@ -90,8 +103,11 @@ async function main() {
   assert(csv.includes('"Registrar","Dynadot","","1","2.50","USD"'));
   assert(csv.includes('"one.digital"') && csv.includes('"two.digital"'));
   assert(!csv.includes('"three.digital"') && !csv.includes('"direct.digital"'), 'CSV respects buyer filter');
+  await call('Page.reload');
+  await until(`${report}?.innerText.includes('$5.75')`);
+  assert.deepEqual(await checks(), [true, false, false], 'A partial selection survives reload');
   assert.equal(forbidden.length, 0);
   assert.deepEqual(unexpected, []);
-  console.log('PASS: hierarchical spending report, independent grouping controls, registrar and buyer totals, filters, grand totals and grouped CSV export. All API calls mocked.');
+  console.log('PASS: grouping defaults off and persists all, empty and partial selections across reloads; hierarchical spending report, independent grouping controls, registrar and buyer totals, filters, grand totals and grouped CSV export. All API calls mocked.');
 }
 main().catch(error => { console.error(error); process.exitCode = 1; }).finally(() => { ws?.close(); chrome?.kill(); setTimeout(() => fs.rmSync(profile, { recursive: true, force: true }), 500); });

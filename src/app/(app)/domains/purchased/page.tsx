@@ -10,8 +10,9 @@ import { PageHeader } from "@/components/layout/app-shell";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import { Table, THead, Th, Td } from "@/components/ui/table";
-import { domainReportCsv, flattenReportGroups, groupDomainReport, matchesPurchaseDates, reportTotals, REPORT_GROUP_LABELS, type ReportGrouping } from "@/lib/domain-report";
+import { domainReportCsv, flattenReportGroups, groupDomainReport, matchesPurchaseDates, reportTotals, REPORT_GROUP_LABELS } from "@/lib/domain-report";
 import { api } from "@/lib/api/client";
+import { useReportGrouping } from "@/lib/report-preferences";
 import { formatDate, formatMoney } from "@/lib/utils";
 
 type DomainRow = {
@@ -63,7 +64,7 @@ export default function PurchasedPage() {
   const [statusFilter, setStatusFilter] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
-  const [reportGrouping, setReportGrouping] = useState<ReportGrouping[]>(["registrar", "buyerGroup", "buyer"]);
+  const [reportGrouping, setReportGrouping] = useReportGrouping();
   const invalidDates = Boolean(dateFrom && dateTo && dateFrom > dateTo);
 
   const domains = useMemo(() => {
@@ -206,8 +207,8 @@ export default function PurchasedPage() {
           <span className="text-muted-foreground">Group by:</span>
           {(["registrar", "buyerGroup", "buyer"] as const).map(dimension => (
             <label key={dimension} className="flex items-center gap-2">
-              <input type="checkbox" checked={reportGrouping.includes(dimension)} onChange={e => setReportGrouping(current =>
-                (["registrar", "buyerGroup", "buyer"] as const).filter(key => key === dimension ? e.target.checked : current.includes(key)),
+              <input type="checkbox" checked={reportGrouping.includes(dimension)} onChange={e => setReportGrouping(
+                (["registrar", "buyerGroup", "buyer"] as const).filter(key => key === dimension ? e.target.checked : reportGrouping.includes(key)),
               )} />
               {REPORT_GROUP_LABELS[dimension]}
             </label>
