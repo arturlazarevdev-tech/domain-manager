@@ -10,7 +10,7 @@ import { PageHeader } from "@/components/layout/app-shell";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import { Table, THead, Th, Td } from "@/components/ui/table";
-import { domainReportCsv, matchesPurchaseDates, reportTotals } from "@/lib/domain-report";
+import { domainReportCsv, flattenReportGroups, groupDomainReport, matchesPurchaseDates, reportTotals, REPORT_GROUP_LABELS, type ReportGrouping } from "@/lib/domain-report";
 import { api } from "@/lib/api/client";
 import { formatDate, formatMoney } from "@/lib/utils";
 
@@ -63,6 +63,7 @@ export default function PurchasedPage() {
   const [statusFilter, setStatusFilter] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [reportGrouping, setReportGrouping] = useState<ReportGrouping[]>(["registrar", "buyerGroup", "buyer"]);
   const invalidDates = Boolean(dateFrom && dateTo && dateFrom > dateTo);
 
   const domains = useMemo(() => {
@@ -82,11 +83,12 @@ export default function PurchasedPage() {
   const selectedRows = domains.filter((row) => selected.includes(row.id));
   const allSelected = domains.length > 0 && selectedRows.length === domains.length;
   const totals = useMemo(() => reportTotals(domains), [domains]);
+  const reportGroups = useMemo(() => flattenReportGroups(groupDomainReport(domains, reportGrouping)), [domains, reportGrouping]);
   const groupHint = selectedRows[0]?.group || selectedRows[0]?.buyer?.keitaroGroup || selectedRows[0]?.buyer?.stageName;
 
   function exportReport() {
     if (invalidDates || !domains.length) return;
-    const url = URL.createObjectURL(new Blob([domainReportCsv(domains)], { type: "text/csv;charset=utf-8;" }));
+    const url = URL.createObjectURL(new Blob([domainReportCsv(domains, reportGrouping)], { type: "text/csv;charset=utf-8;" }));
     const link = document.createElement("a");
     link.href = url;
     link.download = `purchased-domains_${dateFrom || "all"}_${dateTo || "all"}.csv`;
@@ -196,8 +198,39 @@ export default function PurchasedPage() {
       <div className="mb-3 flex flex-wrap items-center gap-3 text-sm">
         <span className="font-medium">{domains.length} domains</span>
         {totals.map((total) => <span key={total.currency}>{formatMoney(total.amount, total.currency)}</span>)}
-        <span className="text-xs text-muted-foreground">Export includes all filtered domains and totals per currency.</span>
+        <span className="text-xs text-muted-foreground">Report and export use the current filters. Totals are separate for each currency.</span>
       </div>
+      <section className="mb-5 rounded-lg border bg-card p-4" aria-label="Spending report">
+        <div className="mb-3 flex flex-wrap items-center gap-4 text-sm">
+          <h2 className="font-semibold">Spending report</h2>
+          <span className="text-muted-foreground">Group by:</span>
+          {(["registrar", "buyerGroup", "buyer"] as const).map(dimension => (
+            <label key={dimension} className="flex items-center gap-2">
+              <input type="checkbox" checked={reportGrouping.includes(dimension)} onChange={e => setReportGrouping(current =>
+                (["registrar", "buyerGroup", "buyer"] as const).filter(key => key === dimension ? e.target.checked : current.includes(key)),
+              )} />
+              {REPORT_GROUP_LABELS[dimension]}
+            </label>
+          ))}
+        </div>
+        {reportGroups.length > 0 && <Table>
+          <THead><tr><Th>Group</Th><Th>Domains</Th><Th>Total spent</Th></tr></THead>
+          <tbody>
+            {reportGroups.map(group => <tr key={group.key} className="border-t">
+              <Td style={{ paddingLeft: 12 + group.depth * 24 }}>
+                <span className="text-xs text-muted-foreground">{REPORT_GROUP_LABELS[group.dimension]}: </span>
+                <span className={group.children.length ? "font-semibold" : ""}>{group.label}</span>
+              </Td>
+              <Td>{group.domains.length}</Td>
+              <Td>{group.totals.map(total => <div key={total.currency}>{formatMoney(total.amount, total.currency)}</div>)}</Td>
+            </tr>)}
+          </tbody>
+        </Table>}
+        <div className="mt-3 flex flex-wrap gap-3 text-sm font-semibold" aria-label="Report grand total">
+          <span>Grand total: {domains.length} domains</span>
+          {totals.map(total => <span key={total.currency}>{formatMoney(total.amount, total.currency)}</span>)}
+        </div>
+      </section>
       <Table>
         <THead>
           <tr>
