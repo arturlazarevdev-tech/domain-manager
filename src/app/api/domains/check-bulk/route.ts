@@ -16,7 +16,7 @@ export async function POST(request: Request) {
     const results = await registrar.checkDomains(domains);
     const withPrices = await Promise.all(
       results.map(async (item) => {
-        if (!item.available) return item;
+        if (!item.available || item.price) return item;
         try {
           item.price = await registrar.getPrice(item.domain);
         } catch {

@@ -77,7 +77,7 @@ export async function startPurchase(input: Omit<PurchaseJobPayload, "batchId" | 
     let price = check?.price?.registration.amount;
     let currency = check?.price?.registration.currency ?? "USD";
     try {
-      const quoted = await registrar.getPrice(domain);
+      const quoted = check?.price ?? await registrar.getPrice(domain);
       price = quoted.registration.amount;
       currency = quoted.registration.currency;
     } catch {
@@ -232,7 +232,7 @@ export async function processPurchaseJob(jobId: string) {
 
       item.step = "Getting price";
       await saveProgress(jobId, progress);
-      const price = await registrar.getPrice(domain);
+      const price = availability.price ?? await registrar.getPrice(domain);
       item.price = price.registration.amount;
       item.currency = price.registration.currency;
       await logActivity({

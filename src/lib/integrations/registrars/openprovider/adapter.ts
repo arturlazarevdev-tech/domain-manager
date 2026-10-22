@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { domainToASCII } from "node:url";
 import { setTimeout as delay } from "node:timers/promises";
 import { AppError } from "@/lib/errors";
@@ -68,12 +69,16 @@ export function openproviderContact(contact: RegistrantContact) {
   };
 }
 
+const tldCatalogs = new Map<string, { expiresAt: number; value: Promise<string[]> }>();
+
 export class OpenProviderAdapter implements DomainRegistrar {
   readonly provider = "openprovider";
   private readonly client: OpenproviderClient;
   private readonly defaultNameservers: string[];
+  private readonly catalogKey: string;
   constructor(credentials: OpenproviderCredentials, options?: { defaultNameservers?: string[] }) {
     this.client = new OpenproviderClient(credentials);
+    this.catalogKey = createHash("sha256").update(JSON.stringify(credentials)).digest("hex");
     this.defaultNameservers = options?.defaultNameservers?.filter(Boolean) ?? [];
   }
   async testConnection() {
@@ -112,8 +117,14 @@ export class OpenProviderAdapter implements DomainRegistrar {
   }
   async listTlds(): Promise<string[]> {
     // The live v1 API fails with only_names=true; full records work with pagination.
-    const results = await this.list<{ name: string }>("/tlds", { is_active: true });
-    return [...new Set(results.map((row) => row.name.replace(/^\./, "")))].sort();
+    const cached = tldCatalogs.get(this.catalogKey);
+    if (cached && cached.expiresAt > Date.now()) return cached.value;
+    const value = this.list<{ name: string }>("/tlds", { is_active: true }).then(results =>
+      [...new Set(results.map(row => row.name.replace(/^\./, "")))].sort(),
+    );
+    tldCatalogs.set(this.catalogKey, { value, expiresAt: Date.now() + 60 * 60 * 1000 });
+    try { return await value; }
+    catch (error) { if (tldCatalogs.get(this.catalogKey)?.value === value) tldCatalogs.delete(this.catalogKey); throw error; }
   }
   async registerDomain(data: RegisterDomainRequest): Promise<RegisterDomainResult> {
     const { domain, name, extension } = domainParts(data.domain);

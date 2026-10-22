@@ -1,3 +1,4 @@
+import { openproviderRequestContext } from "@/lib/integrations/registrars/openprovider/context";
 import { prisma } from "@/lib/db";
 import type { JobProgress } from "@/lib/jobs/types";
 import { logActivity } from "@/lib/services/activity";
@@ -16,7 +17,15 @@ export async function processJob(jobId: string) {
 
   try {
     if (job.type === "purchase") {
-      await processPurchaseJob(jobId);
+      await openproviderRequestContext.run({ onWait: async ms => {
+        const current = await prisma.job.findUnique({ where: { id: jobId } });
+        const progress = current?.progress as JobProgress | null;
+        const active = progress?.items.find(item => item.status === "purchasing" || item.status === "queued");
+        if (active && progress) {
+          active.step = `Waiting for Openprovider API limit (${Math.ceil(ms / 1000)} seconds)`;
+          await prisma.job.update({ where: { id: jobId }, data: { progress: progress as object } });
+        }
+      } }, () => processPurchaseJob(jobId));
     } else if (job.type === "cloudflare-refresh") {
       await refreshCloudflareStatus();
     } else {
