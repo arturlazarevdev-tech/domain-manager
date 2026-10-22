@@ -17,7 +17,7 @@ type Registrar = {
 };
 const empty = {
   name: "Regway", provider: "regway", currency: "USD", authUserId: "", apiKey: "", apiSecret: "", username: "", password: "",
-  sandbox: false, enabled: true, defaultNameservers: "ns1.onlyfordns.net, ns2.onlyfordns.net",
+  sandbox: false, enabled: true, defaultNameservers: "",
 };
 
 export default function RegistrarsSettingsPage() {
@@ -102,7 +102,7 @@ export default function RegistrarsSettingsPage() {
           <Field label="API key"><Input type="password" value={form.apiKey} placeholder={editingId ? "Leave blank to keep current key" : ""} onChange={(e) => setForm({ ...form, apiKey: e.target.value })} /></Field>
           <p className="text-xs text-muted-foreground">Allow this server’s IP in Regway → Settings → API.</p>
         </>}
-        <Field label="Default nameservers"><Input value={form.defaultNameservers} placeholder={isOpenprovider || isDynadot ? "Optional: uses registrar defaults until Cloudflare is assigned" : "ns1.example.com, ns2.example.com"} onChange={(e) => setForm({ ...form, defaultNameservers: e.target.value })} /></Field>
+        <Field label="Default nameservers"><Input value={form.defaultNameservers} placeholder="Optional: uses registrar defaults until Cloudflare is assigned" onChange={(e) => setForm({ ...form, defaultNameservers: e.target.value })} /></Field>
         <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.sandbox} onChange={(e) => setForm({ ...form, sandbox: e.target.checked })} />Sandbox</label>
       </div>
       <div className="mt-4 flex justify-end gap-2">

@@ -1,4 +1,7 @@
 import { AppError } from "@/lib/errors";
+import dns from "node:dns/promises";
+import { isIP } from "node:net";
+import { domainToASCII } from "node:url";
 import { chunk, sleep } from "@/lib/concurrency";
 import { splitDomain } from "@/lib/utils";
 import type {
@@ -205,12 +208,7 @@ export class RegwayAdapter implements DomainRegistrar {
       extraCustomerId && extraContactId
         ? { customerId: extraCustomerId, contactId: extraContactId }
         : await this.ensureContact(data.contact);
-    const nameservers =
-      data.nameservers && data.nameservers.length >= 2
-        ? data.nameservers
-        : this.defaultNameservers.length >= 2
-          ? this.defaultNameservers
-          : ["ns1.onlyfordns.net", "ns2.onlyfordns.net"];
+    const nameservers = await this.registrationNameservers(customerId, data.nameservers);
 
     const response = await this.client.request<Record<string, unknown> | string | number>(
       "/domains/register.json",
@@ -248,6 +246,37 @@ export class RegwayAdapter implements DomainRegistrar {
       externalCustomerId: customerId,
       externalContactId: contactId,
     };
+  }
+
+  private async validateRegistrationNameservers(values: string[]) {
+    const names = [...new Set(values.map(value => domainToASCII(value.trim().toLowerCase().replace(/\.$/, ""))))];
+    if (names.length < 2 || names.length > 13 || names.some(name => isIP(name) !== 0 || !/^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9-]{2,63}$/.test(name))) {
+      throw new AppError({ message: "Regway: set between two and thirteen valid nameservers in Settings → Registrars.", provider: "regway", details: "invalid_nameservers" });
+    }
+    await Promise.all(names.map(async name => {
+      try { await dns.lookup(name); }
+      catch (error) {
+        const code = (error as NodeJS.ErrnoException)?.code;
+        throw new AppError({ message: `Regway: nameserver ${name} could not be resolved. Check nameservers in Settings → Registrars and try again.`, provider: "regway", details: code });
+      }
+    }));
+    return names;
+  }
+
+  private async registrationNameservers(customerId: string, requested?: string[]) {
+    // Explicit per-domain choices must never be silently replaced.
+    if (requested?.length) return this.validateRegistrationNameservers(requested);
+    if (this.defaultNameservers.length) {
+      try { return await this.validateRegistrationNameservers(this.defaultNameservers); }
+      catch (error) {
+        if (!(error instanceof AppError) || !["ENOTFOUND", "ENODATA", "invalid_nameservers"].includes(error.details ?? "")) throw error;
+      }
+    }
+    const defaults = await this.client.request<unknown>("/domains/customer-default-ns.json", "GET", { "customer-id": customerId });
+    if (!Array.isArray(defaults) || defaults.some(value => typeof value !== "string")) {
+      throw new AppError({ message: "Regway did not return default nameservers. Set valid nameservers in Settings → Registrars before registering domains.", provider: "regway" });
+    }
+    return this.validateRegistrationNameservers(defaults);
   }
 
   async getRegistrationCharge(domain: string, years = 1, notBefore?: number): Promise<Money | undefined> {

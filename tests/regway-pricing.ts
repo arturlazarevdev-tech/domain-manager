@@ -1,4 +1,7 @@
 import assert from 'node:assert/strict';
+import dns from 'node:dns/promises';
+const originalLookup = dns.lookup;
+dns.lookup = (async () => ({ address: '192.0.2.1', family: 4 })) as unknown as typeof dns.lookup;
 import { RegwayAdapter, registrationCharge, recentRegistrationCharge } from '../src/lib/integrations/registrars/regway/adapter';
 const now = Date.now();
 const invoice = { type: 'invoice', description: 'Registration of example.digital for 1 year', sellingamount: '-2.990', sellingcurrencysymbol: 'USD', transactiondate: String(Math.floor(now / 1000)) };
@@ -35,7 +38,7 @@ globalThis.fetch = (async (input, init) => {
 }) as typeof fetch;
 async function main() {
 try {
-  const adapter = new RegwayAdapter({ authUserId: 'test', apiKey: 'test', sandbox: false });
+  const adapter = new RegwayAdapter({ authUserId: 'test', apiKey: 'test', sandbox: false }, { defaultNameservers: ['ns1.example.net', 'ns2.example.net'] });
   const request = { domain: 'example.digital', extra: { customerId: '1', contactId: '2' }, contact: { name: 'Test', email: 'test@example.invalid', phone: '1234567890', country: 'US', state: 'CA', city: 'Test', address: '1 Test St', zip: '90001' } };
   assert.deepEqual((await adapter.registerDomain(request)).price, { amount: 2.99, currency: 'USD' });
   invoiceFails = true;
@@ -72,7 +75,7 @@ try {
   assert.equal(promoted.recentRegistration, undefined, 'Live promotion takes precedence over historical prices');
 
   console.log('PASS: exact reseller invoice, amount/currency/date validation, refunds and renewals excluded, customer selling price ignored, completed registration preserved when billing lookup fails. All API calls mocked.');
-} finally { globalThis.fetch = originalFetch; }
+} finally { globalThis.fetch = originalFetch; dns.lookup = originalLookup; }
 
 }
 main().catch(error => { console.error(error); process.exitCode = 1; });
