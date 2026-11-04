@@ -144,6 +144,38 @@ API contracts: [official specification](https://developer.openprovider.com/data/
 
 ## Manual domains, updates and TXT records
 
+### Changing a Keitaro server IP
+
+Administrators can use **Infrastructure → Keitaro → Update all domain IPs**
+(also in **Settings → Servers**) to enter a new IPv4 address and update every
+domain assigned to that server. This saves the server IP for future provisioning
+and queues a background job for existing domains. Reopen the dialog to see its
+progress, verified successes and individual errors. Only one update per server
+can run at a time. Keep the web app and purchase worker on the same code version.
+
+The job reads live Cloudflare DNS and changes only the content of root/www A
+records, preserving TTL, proxy mode, comments and tags through
+[Cloudflare PATCH](https://developers.cloudflare.com/api/resources/dns/subresources/records/methods/edit/).
+It preserves www aliases to the root, TXT/MX records and other subdomains.
+An API URL using a literal previous server IP follows the new IP; a hostname URL
+stays unchanged. No Keitaro domains, groups or campaigns are recreated.
+
+Each domain's local DNS snapshot and server IP are saved after DNS verification.
+Domains with no linked zone, a missing root A record, root/www IPv6 records,
+external www aliases or provider errors report failures for review. Retry with
+the same IP after fixing those errors; records already at that IP are skipped.
+Changing the IP with the regular **Edit → Save** form only changes the default
+for future provisioning; use **Update all domain IPs** for existing domains.
+If the worker stops unexpectedly, review the running job before starting another
+update; it must finish or be marked failed before a new one can be queued.
+
+Offline regression checks (database and external HTTP mocked):
+
+```bash
+node --import tsx tests/keitaro-ip.ts
+node --import tsx tests/keitaro-ip-job.ts
+```
+
 Keitaro domain groups remain enabled on servers that support them. When a server
 specifically returns `Unknown group type`, domains are added without `group_id`;
 the buyer group remains in this app and is sent as notes for newly created

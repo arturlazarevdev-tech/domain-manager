@@ -4,13 +4,17 @@ import type { JobProgress } from "@/lib/jobs/types";
 import { logActivity } from "@/lib/services/activity";
 import { processPurchaseJob } from "@/lib/services/purchase";
 import { refreshCloudflareStatus } from "@/lib/services/provisioning";
+import { ipUpdateJobType, processKeitaroIpJob, type IpUpdatePayload } from "@/lib/services/keitaro-ip";
 
 export async function processJob(jobId: string) {
   const job = await prisma.job.findUnique({ where: { id: jobId } });
   if (!job) return;
   if (job.status === "completed") return;
 
-  await prisma.job.update({
+  if (job.type === ipUpdateJobType) {
+    const claim = await prisma.job.updateMany({ where: { id: jobId, status: "queued" }, data: { status: "running" } });
+    if (!claim.count) return;
+  } else await prisma.job.update({
     where: { id: jobId },
     data: { status: "running" },
   });
@@ -26,6 +30,8 @@ export async function processJob(jobId: string) {
           await prisma.job.update({ where: { id: jobId }, data: { progress: progress as object } });
         }
       } }, () => processPurchaseJob(jobId));
+    } else if (job.type === ipUpdateJobType) {
+      await processKeitaroIpJob(jobId, job.payload as IpUpdatePayload);
     } else if (job.type === "cloudflare-refresh") {
       await refreshCloudflareStatus();
     } else {

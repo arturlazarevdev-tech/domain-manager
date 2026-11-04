@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, Input } from "@/components/ui/primitives";
 import { Dialog, Field } from "@/components/ui/dialog";
 import { api } from "@/lib/api/client";
+import { KeitaroIpUpdate } from "@/components/keitaro-ip-update";
 
 type Server = {
   id: string;
@@ -19,6 +20,7 @@ type Server = {
   username?: string;
   ipAddress?: string | null;
   lastError?: string | null;
+  domainCount?: number;
 };
 
 export default function ServersSettingsPage() {
@@ -65,6 +67,7 @@ export default function ServersSettingsPage() {
             </div>
             <div className="flex items-center gap-2">
               <StatusBadge value={item.connectionStatus} />
+              <KeitaroIpUpdate server={item} />
               <Button
                 variant="outline"
                 onClick={async () => {

@@ -199,6 +199,13 @@ export class CloudflareAdapter implements CloudflareProvider {
     await this.request(`/zones/${zoneId}/dns_records/${recordId}`, { method: "DELETE" });
   }
 
+  async updateDnsRecordIp(zoneId: string, recordId: string, ip: string) {
+    // PATCH preserves TTL, proxy mode, comments, tags and provider settings.
+    await this.request(`/zones/${zoneId}/dns_records/${recordId}`, {
+      method: "PATCH", body: JSON.stringify({ content: ip }),
+    });
+  }
+
   private async request<T>(path: string, init?: RequestInit): Promise<T> {
     const payload = await this.requestRaw<T>(path, init);
     return payload.result;
@@ -207,6 +214,7 @@ export class CloudflareAdapter implements CloudflareProvider {
   private async requestRaw<T>(path: string, init?: RequestInit) {
     const response = await fetch(`https://api.cloudflare.com/client/v4${path}`, {
       ...init,
+      signal: init?.signal ?? AbortSignal.timeout(30_000),
       headers: {
         Authorization: `Bearer ${this.credentials.apiToken}`,
         "Content-Type": "application/json",

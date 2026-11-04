@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/layout/app-shell";
 import { StatusBadge } from "@/components/status-badge";
 import { Card } from "@/components/ui/primitives";
 import { api } from "@/lib/api/client";
+import { KeitaroIpUpdate } from "@/components/keitaro-ip-update";
 
 export default function KeitaroInfraPage() {
   const { data } = useQuery({
@@ -27,6 +28,7 @@ export default function KeitaroInfraPage() {
               <StatusBadge value={item.connectionStatus} />
               <span>{item.domainCount} domains</span>
             </div>
+            <div className="mt-3"><KeitaroIpUpdate server={item} /></div>
           </Card>
         ))}
       </div>
