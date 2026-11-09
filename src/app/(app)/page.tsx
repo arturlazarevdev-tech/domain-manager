@@ -56,7 +56,7 @@ export default function DashboardPage() {
     { label: "Domains", value: data?.domains ?? 0 },
     { label: "Cloudflare", value: `${data?.cloudflare ?? 0} accounts` },
     { label: "Keitaro", value: `${data?.keitaro ?? 0} servers` },
-    { label: "Hestia", value: `${data?.hestia ?? 0} servers` },
+    { label: "Hosting", value: `${data?.hestia ?? 0} servers` },
   ];
 
   return (

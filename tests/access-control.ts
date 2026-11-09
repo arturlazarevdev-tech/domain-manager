@@ -47,6 +47,15 @@ async function main() {
     // Invalid input cannot buy a domain, but reaching validation proves both roles are authorized.
     assert.equal((await request("/api/domains/purchase", token, "POST", {})).status, 400);
   }
+  for (const token of [tech, admin]) {
+    assert.equal((await request("/servers", token)).status, 200, "both roles can use Servers");
+    for (const path of ["/api/domains/missing-access-test/server", "/api/domains/bulk/server"]) {
+      assert.equal((await request(path, token, "POST", {})).status, 400, "both roles reach server validation");
+    }
+  }
+  for (const path of ["/api/domains/missing-access-test/server", "/api/domains/bulk/server"]) {
+    assert.equal((await request(path, undefined, "POST", {})).status, 401, "anonymous server operations denied");
+  }
   const group = await request("/api/buyer-groups", admin, "POST", { name: `Access test ${crypto.randomUUID()}` });
   assert.equal(group.status, 200, "admin can create settings");
   const groupId = (await group.json()).group.id;

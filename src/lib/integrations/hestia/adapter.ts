@@ -5,6 +5,7 @@ import type { HestiaDomain, HestiaProvider } from "@/lib/integrations/types";
 export const hestiaCredentialsSchema = z.object({
   accessKey: z.string().min(1),
   secretKey: z.string().min(1),
+  user: z.string().min(1).optional(),
 });
 
 export type HestiaCredentials = z.infer<typeof hestiaCredentialsSchema>;
@@ -28,7 +29,7 @@ export class HestiaAdapter implements HestiaProvider {
 
   async testConnection() {
     try {
-      await this.call("v-list-sys-info", ["json"]);
+      await this.call(this.credentials.user ? "v-list-web-domains" : "v-list-sys-info", this.credentials.user ? [this.credentials.user, "json"] : ["json"]);
       return { ok: true as const };
     } catch (error) {
       return {
@@ -39,6 +40,7 @@ export class HestiaAdapter implements HestiaProvider {
   }
 
   async listUsers() {
+    if (this.credentials.user) return [this.credentials.user];
     const data = await this.call<Record<string, unknown>>("v-list-users", ["json"]);
     if (typeof data === "string") return [data];
     return Object.keys(data ?? {});
@@ -69,8 +71,7 @@ export class HestiaAdapter implements HestiaProvider {
 
   private async call<T = unknown>(cmd: string, args: string[] = []): Promise<T> {
     const body = new URLSearchParams();
-    body.set("access_key", this.credentials.accessKey);
-    body.set("secret_access_key", this.credentials.secretKey);
+    body.set("hash", `${this.credentials.accessKey}:${this.credentials.secretKey}`);
     body.set("cmd", cmd);
     body.set("returncode", cmd.startsWith("v-list") ? "no" : "yes");
     args.forEach((arg, index) => body.set(`arg${index + 1}`, arg));
@@ -80,6 +81,7 @@ export class HestiaAdapter implements HestiaProvider {
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body,
       cache: "no-store",
+      signal: AbortSignal.timeout(30_000),
     });
     const text = await response.text();
 
@@ -93,20 +95,20 @@ export class HestiaAdapter implements HestiaProvider {
       });
     }
 
-    if (cmd.startsWith("v-list")) {
+    if (cmd.startsWith("v-list") && !/^\d+$/.test(text.trim())) {
       try {
-        return JSON.parse(text) as T;
-      } catch {
-        return text as T;
-      }
+        const data: unknown = JSON.parse(text);
+        if (data && typeof data === "object") return data as T;
+      } catch { /* Invalid responses must not indicate a successful connection. */ }
+      throw new AppError({ message: "Hestia returned an invalid response", provider: "hestia", status: 502 });
     }
 
-    const code = Number(text.trim());
-    if (Number.isFinite(code) && code !== 0 && code !== 4) {
+    const code = /^\d+$/.test(text.trim()) ? Number(text.trim()) : NaN;
+    if (!Number.isFinite(code) || cmd.startsWith("v-list") || (code !== 0 && !(code === 4 && cmd === "v-add-web-domain"))) {
       throw new AppError({
         message: `Hestia could not complete ${cmd}`,
         provider: "hestia",
-        details: HESTIA_CODES[code] ?? `Return code ${code}: ${text}`,
+        details: HESTIA_CODES[code] ?? "Unexpected Hestia response",
         status: 400,
         retryable: code >= 13,
       });

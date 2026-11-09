@@ -166,7 +166,7 @@ export default function DomainDetailsPage() {
             </>
           ) : domain.hestia ? (
             <>
-              <div>Type: Hestia</div>
+              <div>Type: Web hosting</div>
               <div>Server: {domain.hestia.server.name}</div>
               <div>
                 Status: <StatusBadge value={domain.hestia.status} />
@@ -176,7 +176,7 @@ export default function DomainDetailsPage() {
             <div className="flex gap-2">
               <Button onClick={() => setModal("kt")}>Add to Keitaro</Button>
               <Button variant="outline" onClick={() => setModal("hs")}>
-                Add to Hestia
+                Add to server
               </Button>
             </div>
           )}

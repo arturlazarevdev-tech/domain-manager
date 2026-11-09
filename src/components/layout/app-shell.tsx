@@ -23,7 +23,7 @@ import { useCart } from "@/lib/cart";
 
 type NavItem =
   | { href: string; label: string; icon: LucideIcon }
-  | { label: string; adminOnly?: boolean; children: Array<{ href: string; label: string }> };
+  | { label: string; adminOnly?: boolean; children: Array<{ href: string; label: string; adminOnly?: boolean }> };
 
 const nav: NavItem[] = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -36,11 +36,10 @@ const nav: NavItem[] = [
   },
   {
     label: "Infrastructure",
-    adminOnly: true,
     children: [
-      { href: "/infrastructure/cloudflare", label: "Cloudflare" },
-      { href: "/infrastructure/keitaro", label: "Keitaro" },
-      { href: "/infrastructure/hestia", label: "Hestia" },
+      { href: "/infrastructure/cloudflare", label: "Cloudflare", adminOnly: true },
+      { href: "/infrastructure/keitaro", label: "Keitaro", adminOnly: true },
+      { href: "/servers", label: "Servers" },
     ],
   },
   {
@@ -88,7 +87,7 @@ function NavLinks({
           <div key={item.label}>
             <div className="px-2 pb-1 text-[11px] uppercase tracking-wide text-sidebar-muted">{item.label}</div>
             <div className="space-y-0.5">
-              {item.children.map((child) => (
+              {item.children.filter(child => isAdmin || !child.adminOnly).map((child) => (
                   <Link
                     key={child.href}
                     href={child.href}

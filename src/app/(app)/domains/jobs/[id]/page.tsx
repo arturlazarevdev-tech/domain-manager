@@ -206,7 +206,7 @@ export default function JobPage() {
               Add to Keitaro
             </Button>
             <Button variant="outline" disabled={!selected.length} onClick={() => setModal("hs")}>
-              Add to Hestia
+              Add to server
             </Button>
           </div>
           <Table>

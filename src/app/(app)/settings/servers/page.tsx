@@ -93,7 +93,7 @@ export default function ServersSettingsPage() {
         ))}
       </div>
       <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Hestia</h2>
+        <h2 className="text-lg font-semibold">Web servers</h2>
         <Button
           onClick={() => {
             setHsEditing(null);
@@ -116,9 +116,7 @@ export default function ServersSettingsPage() {
           <Card key={item.id} className="flex items-center justify-between gap-3">
             <div>
               <div className="font-medium">{item.name}</div>
-              <div className="text-sm text-muted-foreground">{item.url}</div>
               <div className="text-sm">IP address: {item.ipAddress || "—"}</div>
-              <div className="text-sm text-muted-foreground">Username {item.username} · {item.credentials}</div>
             </div>
             <div className="flex items-center gap-2">
               <StatusBadge value={item.connectionStatus} />
@@ -192,13 +190,14 @@ export default function ServersSettingsPage() {
           </Button>
         </div>
       </Dialog>
-      <Dialog open={hestiaOpen} onClose={() => setHestiaOpen(false)} title={hsEditing ? "Edit Hestia server" : "Add Hestia server"}>
+      <Dialog open={hestiaOpen} onClose={() => setHestiaOpen(false)} title={hsEditing ? "Edit hosting server" : "Add hosting server"}>
         <div className="grid gap-3">
           <Field label="Name">
             <Input value={hsForm.name} onChange={(e) => setHsForm({ ...hsForm, name: e.target.value })} />
           </Field>
-          <Field label="URL">
+          <Field label="Panel API URL">
             <Input value={hsForm.url} onChange={(e) => setHsForm({ ...hsForm, url: e.target.value })} />
+            <span className="text-xs text-muted-foreground">Technical address used by the application to manage hosting. Website domains point to the server IP below.</span>
           </Field>
           <Field label="IP address">
             <Input value={hsForm.ipAddress} onChange={(e) => setHsForm({ ...hsForm, ipAddress: e.target.value })} placeholder="46.20.123.55" />

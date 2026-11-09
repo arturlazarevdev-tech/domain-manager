@@ -23,5 +23,5 @@ export async function getHestia(serverId: string) {
   const server = await prisma.hestiaServer.findUnique({ where: { id: serverId } });
   if (!server) throw new AppError({ message: "Hestia server not found", status: 404 });
   const credentials = hestiaCredentialsSchema.parse(decryptJson(server.credentialsEncrypted));
-  return { server, adapter: new HestiaAdapter(server.url, credentials) };
+  return { server, adapter: new HestiaAdapter(server.url, { ...credentials, user: credentials.user ?? server.username }) };
 }

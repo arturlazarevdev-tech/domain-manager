@@ -4,6 +4,7 @@ import { decryptJson, encryptJson } from "@/lib/crypto";
 import { prisma } from "@/lib/db";
 import { getHestia } from "@/lib/integrations/factory";
 import { last4, publicServer } from "@/lib/serializers";
+import type { HestiaCredentials } from "@/lib/integrations/hestia/adapter";
 import { hestiaSchema } from "@/lib/validators";
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -16,7 +17,7 @@ export async function PATCH(request: Request, ctx: Ctx) {
     const body = hestiaSchema.parse(await request.json());
     const existing = await prisma.hestiaServer.findUnique({ where: { id } });
     if (!existing) return Response.json({ error: { message: "Not found" } }, { status: 404 });
-    const current = decryptJson<{ accessKey: string; secretKey: string }>(existing.credentialsEncrypted);
+    const current = decryptJson<HestiaCredentials>(existing.credentialsEncrypted);
     const accessKey = body.accessKey || current.accessKey;
     const secretKey = body.secretKey || current.secretKey;
     const server = await prisma.hestiaServer.update({
@@ -27,7 +28,7 @@ export async function PATCH(request: Request, ctx: Ctx) {
         username: body.username,
         ipAddress: body.ipAddress?.trim() || existing.ipAddress,
         enabled: body.enabled ?? existing.enabled,
-        credentialsEncrypted: encryptJson({ accessKey, secretKey }),
+        credentialsEncrypted: encryptJson({ ...current, accessKey, secretKey }),
         credentialsLast4: body.secretKey ? last4(body.secretKey) : existing.credentialsLast4,
       },
     });

@@ -55,12 +55,26 @@ Both `admin` and `tech` users can purchase and manage domains using existing buy
 groups, registrant profiles and integrations. Only administrators can create, edit,
 delete or test configuration: buyers/groups, registrars, registrant profiles,
 Cloudflare accounts, Keitaro/Hestia servers, general settings and users.
-Infrastructure and Settings navigation and pages are available only to administrators.
+All signed-in users can open Infrastructure → Servers. Other Infrastructure
+pages and all Settings pages are available only to administrators.
 API permissions use the current database role, so demotion takes effect immediately.
 
 With the app and its database running, verify permissions with
 `node --import tsx tests/access-control.ts`. This check uses temporary users and a
 buyer group, cleans them up, and submits only invalid purchase input (no purchases).
+
+## Hosting servers
+
+All signed-in users can open **Infrastructure → Servers → Add domains**, or choose
+**Add selected to server** in Purchased domains. Select up to 100 domains, then
+choose a Cloudflare account for domains without a zone. The application creates
+missing zones, updates registrar nameservers, creates websites and points root/www
+DNS records at the server. Existing zones keep their account. Batch failures are
+shown per domain and can be retried. The hosting connection uses the Hestia API;
+server credentials and connection settings remain administrator-only.
+
+Adding a domain creates a website configuration. Upload content using the server's
+normal file transfer or deployment workflow.
 
 ## Purchase flow
 

@@ -111,7 +111,7 @@ export default function PurchasedPage() {
               Add selected to Keitaro
             </Button>
             <Button variant="outline" disabled={!selectedRows.length} onClick={() => setModal("hs")}>
-              Add selected to Hestia
+              Add selected to server
             </Button>
             <Button
               variant="outline"

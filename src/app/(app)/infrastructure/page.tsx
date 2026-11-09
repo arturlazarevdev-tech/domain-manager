@@ -21,7 +21,7 @@ export default function InfrastructurePage() {
       <PageHeader title="Infrastructure" />
       <Section title="Cloudflare" items={cf.data?.accounts ?? []} />
       <Section title="Keitaro" items={kt.data?.servers ?? []} />
-      <Section title="Hestia" items={hs.data?.servers ?? []} />
+      <Section title="Hosting" items={hs.data?.servers ?? []} />
     </div>
   );
 }
