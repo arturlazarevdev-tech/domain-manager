@@ -76,6 +76,23 @@ server credentials and connection settings remain administrator-only.
 Adding a domain creates a website configuration. Upload content using the server's
 normal file transfer or deployment workflow.
 
+KIT TEAM SEO hosting uses `80.96.58.192` with the panel/API at
+`https://panel.kitteamseo.domenhub.xyz:8083`. The plain HTTPS hostname redirects
+to the panel port. Its DNS-only A record points at the hosting server.
+
+Hosting account and SSH user: `tech`. Website files are under
+`/home/tech/web/<domain>/public_html`; Hestia configuration and temporary files
+are under `/home/tech/conf` and `/home/tech/tmp`. `kitadmin` is the panel's
+internal administrator account. Migration and installation backups are kept in
+`/backup/tech-migration-*` with private permissions.
+
+The panel hostname is configured independently of the operating-system hostname.
+Certificate renewal uses `/etc/hestiacp/hooks/le_post.sh` to refresh the panel
+certificate for this hostname; `/etc/cron.d/hestia-ssl` refreshes it at boot.
+For a manual refresh, use:
+`v-update-host-certificate tech panel.kitteamseo.domenhub.xyz`.
+Integration credentials remain encrypted in the application database.
+
 ## Purchase flow
 
 1. Recheck availability and price
