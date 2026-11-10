@@ -24,7 +24,7 @@ async function main() {
   async function request(path: string, token?: string, method = "GET", body?: object) {
     return fetch(base + path, { method, redirect: "manual",
       headers: { ...(token ? { cookie: `dm_session=${token}` } : {}), "Content-Type": "application/json" },
-      body: body === undefined ? undefined : JSON.stringify(body),
+      body: method === "GET" || body === undefined ? undefined : JSON.stringify(body),
     });
   }
   const families = ["buyers", "buyer-groups", "registrars", "registrants", "cloudflare", "keitaro", "hestia"];
@@ -32,7 +32,7 @@ async function main() {
     [`/api/${family}`, "POST"], [`/api/${family}/missing-access-test`, "PATCH"],
     ...(family === "buyer-groups" ? [] : [[`/api/${family}/missing-access-test`, "DELETE"]]),
   ] as Array<[string, string]>);
-  mutations.push(["/api/settings", "PATCH"], ["/api/cloudflare/test", "POST"],
+  mutations.push(["/api/settings/google-sheets", "GET"], ["/api/settings/google-sheets", "PATCH"], ["/api/settings/google-sheets", "POST"], ["/api/settings", "PATCH"], ["/api/cloudflare/test", "POST"],
     ["/api/registrars/missing-access-test/test", "POST"],
     ...["cloudflare", "keitaro", "hestia"].map((family) => [`/api/${family}/missing-access-test`, "POST"] as [string, string]),
     ["/api/users", "POST"], ["/api/users/missing-access-test", "PATCH"], ["/api/users/missing-access-test", "DELETE"]);
@@ -56,6 +56,10 @@ async function main() {
   for (const path of ["/api/domains/missing-access-test/server", "/api/domains/bulk/server"]) {
     assert.equal((await request(path, undefined, "POST", {})).status, 401, "anonymous server operations denied");
   }
+  const reportSettings = await request("/api/settings/google-sheets", admin);
+  assert.equal(reportSettings.status, 200);
+  assert(!JSON.stringify(await reportSettings.json()).includes("credentialsEncrypted"), "Google key never returned");
+  assert.equal((await request("/api/settings/google-sheets", admin, "PATCH", {})).status, 400);
   const group = await request("/api/buyer-groups", admin, "POST", { name: `Access test ${crypto.randomUUID()}` });
   assert.equal(group.status, 200, "admin can create settings");
   const groupId = (await group.json()).group.id;
@@ -64,7 +68,7 @@ async function main() {
     await db.user.update({ where: { id: fixtures[1] }, data: { role: "tech" } });
     assert.equal((await request(`/api/buyer-groups/${groupId}`, admin, "PATCH", { name: "Denied" })).status, 403, "demotion revokes access immediately");
     await db.user.update({ where: { id: fixtures[1] }, data: { role: "admin" } });
-    for (const path of ["/settings", "/settings/buyers", "/settings/servers", "/infrastructure", "/infrastructure/cloudflare"]) {
+    for (const path of ["/settings", "/settings/buyers", "/settings/google-sheets", "/settings/servers", "/infrastructure", "/infrastructure/cloudflare"]) {
       const denied = await request(path, tech);
       assert([307, 308].includes(denied.status) && denied.headers.get("location") === "/", `${path}: direct navigation denied`);
       assert.equal((await request(path, admin)).status, 200, `${path}: admin allowed`);

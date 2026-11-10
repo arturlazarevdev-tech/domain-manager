@@ -342,3 +342,33 @@ Contracts and setup: [Dynadot REST documentation](https://www.dynadot.com/domain
 [API settings](https://www.dynadot.com/help/question/find-API-settings).
 Tests mock all provider requests; they never buy domains. A real account test
 requires the account owner's API credentials and allowed server IP.
+
+### Weekly purchase reports to Google Sheets
+
+Admin page: **Settings → Google Sheets** (`/settings/google-sheets`). Columns: date (Kyiv), purchase amount, domain, registrar/provider, currency, buyer, team, server and Cloudflare account. Each domain appears once, using `registeredAt` (or `createdAt` for confirmed purchased/active imports). The report includes purchased domains even if subsequent provisioning failed. Totals are separate per currency.
+
+Reports cover the previous Monday–Sunday in `Europe/Kiev`, including DST. A separate worksheet is created for each week; existing worksheets are preserved. An atomic Sheets batch creates the worksheet, data and ownership marker together. Repeated/concurrent delivery reuses the finished report instead of duplicating or overwriting it. A finished report is a snapshot; later purchase corrections do not rewrite it.
+
+Google setup:
+
+1. In [Google Cloud Console](https://console.cloud.google.com/), create/select a project and enable **Google Sheets API**.
+2. Under **IAM & Admin → Service Accounts**, create an account without project roles. In its **Keys** tab create a **JSON** key.
+3. Paste the JSON into the admin settings page and save. It is encrypted with the existing application `ENCRYPTION_KEY`; API responses never return the key.
+4. Share the target spreadsheet with the displayed service-account email as **Editor**.
+5. Click **Send last week's report** to verify delivery, then enable automatic reporting and save. Do not commit JSON keys or send them in chat.
+
+Deployment (existing database is preserved):
+
+```sh
+# Apply this additive SQL using the deployment database connection:
+npx prisma db execute --schema prisma/schema.prisma --file prisma/changes/20261110_google_sheets_reports.sql
+# Rebuild/restart web after generating Prisma Client as part of Docker build.
+sudo cp deploy/domain-manager-weekly-report.service deploy/domain-manager-weekly-report.timer /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now domain-manager-weekly-report.timer
+sudo systemctl list-timers domain-manager-weekly-report.timer
+```
+
+The host timer runs every Monday at **09:00 Kyiv** via `deploy/weekly-report.sh` in `/opt/domain-manager`, with missed-run catch-up and bounded retries after failures. Until a key is saved and reports are enabled, scheduled executions skip delivery. `node --import tsx src/weekly-report.ts --dry-run` inside the web container prints only the previous week's count/totals without contacting Google. `journalctl -u domain-manager-weekly-report.service` shows execution status; the admin page shows the last delivery error and report link. A manual send is available even when automatic delivery is disabled.
+
+Validation: `node --env-file=.env --import tsx tests/weekly-report.ts`, `TEST_BASE_URL=http://localhost:3001 node --env-file=.env --import tsx tests/access-control.ts`, TypeScript and production build.

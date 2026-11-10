@@ -52,6 +52,7 @@ const nav: NavItem[] = [
       { href: "/settings/servers", label: "Servers" },
       { href: "/settings/users", label: "Users" },
       { href: "/settings/general", label: "General" },
+      { href: "/settings/google-sheets", label: "Google Sheets" },
     ],
   },
 ];

@@ -366,3 +366,19 @@ model PurchaseLock {
   lockedAt   DateTime @default(now())
   jobId      String?
 }
+
+model GoogleSheetsReportSettings {
+  id                   String   @id @default("default")
+  spreadsheetId        String
+  credentialsEncrypted String?
+  serviceAccountEmail  String?
+  enabled              Boolean  @default(false)
+  lastAttemptAt        DateTime?
+  lastSuccessAt        DateTime?
+  lastReportWeek       String?
+  lastSheetId          Int?
+  lastDomainCount      Int?
+  lastError            String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+}

@@ -1,0 +1,14 @@
+[Unit]
+Description=Domain Manager weekly Google Sheets purchase report
+Requires=docker.service
+After=docker.service network-online.target
+StartLimitIntervalSec=1800
+StartLimitBurst=3
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/domain-manager
+ExecStart=/bin/sh /opt/domain-manager/deploy/weekly-report.sh
+TimeoutStartSec=180
+Restart=on-failure
+RestartSec=300
