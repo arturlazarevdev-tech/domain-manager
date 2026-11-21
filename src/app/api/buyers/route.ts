@@ -17,7 +17,7 @@ export async function POST(request: Request) {
   try {
     const body = buyerSchema.parse(await request.json());
     const name = body.name.trim();
-    if (body.groupId && !await prisma.buyerGroup.findUnique({ where: { id: body.groupId } })) throw new AppError({ message: "Group not found", status: 404 });
+    if (body.groupId && !await prisma.buyerGroup.findUnique({ where: { deletedAt: null, id: body.groupId } })) throw new AppError({ message: "Group not found", status: 404 });
     if (body.isDefault) {
       await prisma.buyer.updateMany({ data: { isDefault: false } });
     }

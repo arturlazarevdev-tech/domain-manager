@@ -10,7 +10,7 @@ import { dynadotCredentialsSchema } from "./dynadot/credentials";
 import { DynadotAdapter } from "./dynadot/adapter";
 
 export async function getRegistrar(registrarId: string): Promise<DomainRegistrar> {
-  const account = await prisma.registrarAccount.findUnique({ where: { id: registrarId } });
+  const account = await prisma.registrarAccount.findUnique({ where: { deletedAt: null, id: registrarId } });
   if (!account) {
     throw new AppError({ message: "Registrar account not found", status: 404 });
   }

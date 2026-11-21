@@ -94,6 +94,7 @@ model AppSettings {
 }
 
 model RegistrarAccount {
+  deletedAt DateTime?
   id                   String             @id @default(cuid())
   name                 String
   provider             RegistrarProvider
@@ -113,6 +114,7 @@ model RegistrarAccount {
 }
 
 model CloudflareAccount {
+  deletedAt DateTime?
   id                   String             @id @default(cuid())
   name                 String
   accountId            String
@@ -128,8 +130,9 @@ model CloudflareAccount {
 }
 
 model BuyerGroup {
+  deletedAt DateTime?
   id        String   @id @default(cuid())
-  name      String   @unique
+  name      String
   buyers    Buyer[]
   domains   Domain[]
   createdAt DateTime @default(now())
@@ -137,6 +140,7 @@ model BuyerGroup {
 }
 
 model Buyer {
+  deletedAt DateTime?
   id            String   @id @default(cuid())
   name          String
   groupId       String?
@@ -160,6 +164,7 @@ model Buyer {
 }
 
 model RegistrantProfile {
+  deletedAt DateTime?
   phoneAreaCode String            @default("")
   label         String            @default("")
   id            String            @id @default(cuid())
@@ -301,6 +306,7 @@ model DomainHestia {
 }
 
 model KeitaroServer {
+  deletedAt DateTime?
   id                   String           @id @default(cuid())
   name                 String
   url                  String
@@ -317,6 +323,7 @@ model KeitaroServer {
 }
 
 model HestiaServer {
+  deletedAt DateTime?
   id                   String           @id @default(cuid())
   name                 String
   url                  String

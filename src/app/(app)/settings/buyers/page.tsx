@@ -1,5 +1,6 @@
 "use client";
 
+import { DeleteSettingButton } from "@/components/delete-setting-button";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -103,7 +104,7 @@ export default function BuyersPage() {
       <div className="mb-8 grid gap-3 md:grid-cols-3">
         {(groups?.groups ?? []).map((group) => <div key={group.id} className="rounded-lg border p-4">
           <div className="flex items-center justify-between gap-2"><span className="font-semibold">{group.name}</span>
-            <Button variant="outline" size="sm" onClick={() => { setEditingGroupId(group.id); setGroupName(group.name); setGroupOpen(true); }}>Edit</Button>
+            <div className="flex gap-2"><Button variant="outline" size="sm" onClick={() => { setEditingGroupId(group.id); setGroupName(group.name); setGroupOpen(true); }}>Edit</Button><DeleteSettingButton endpoint={`/api/buyer-groups/${group.id}`} name={group.name} /></div>
           </div>
           <div className="text-sm text-muted-foreground">{group.buyerCount} buyers · {group.domainCount} domains</div>
           <SpendTotals totals={group.totals} />
@@ -144,16 +145,7 @@ export default function BuyersPage() {
                   >
                     Edit
                   </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={async () => {
-                      await api(`/api/buyers/${buyer.id}`, { method: "DELETE" });
-                      refresh();
-                    }}
-                  >
-                    Delete
-                  </Button>
+                  <DeleteSettingButton endpoint={`/api/buyers/${buyer.id}`} name={buyer.name} />
                 </div>
               </Td>
             </tr>

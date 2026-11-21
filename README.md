@@ -93,6 +93,20 @@ For a manual refresh, use:
 `v-update-host-certificate tech panel.kitteamseo.domenhub.xyz`.
 Integration credentials remain encrypted in the application database.
 
+KIT CUBE uses `85.121.178.87` and Hestia account `tech`. Its API key is scoped to
+that account. The API URL is `https://panel.kitwintt.xyz:8083`.
+Production web and worker containers map this panel hostname directly to its IP
+until public DNS is available. They trust its self-signed public certificate through
+`NODE_EXTRA_CA_CERTS` and a read-only mount of
+`deploy/certificates/kitcube-panel.crt`; TLS hostname and certificate verification
+remain enabled. The certificate fingerprint was verified through authenticated SSH:
+`D6:DC:25:24:DA:3C:19:CD:D7:6A:93:6C:30:1F:6F:40:44:82:EE:29:E7:95:A8:4C:20:F7:9C:1F:A9:A3:31:86`.
+It expires on 20 November 2027. If the panel certificate changes, verify the new
+certificate through SSH, replace the public PEM and restart web and worker.
+Remove the custom trust and hostname mapping after public DNS and a publicly
+trusted panel certificate are configured. This mapping applies to API access;
+website domains still require their own public DNS records.
+
 ## Purchase flow
 
 1. Recheck availability and price
@@ -372,3 +386,11 @@ sudo systemctl list-timers domain-manager-weekly-report.timer
 The host timer runs every Monday at **09:00 Kyiv** via `deploy/weekly-report.sh` in `/opt/domain-manager`, with missed-run catch-up and bounded retries after failures. Until a key is saved and reports are enabled, scheduled executions skip delivery. `node --import tsx src/weekly-report.ts --dry-run` inside the web container prints only the previous week's count/totals without contacting Google. `journalctl -u domain-manager-weekly-report.service` shows execution status; the admin page shows the last delivery error and report link. A manual send is available even when automatic delivery is disabled.
 
 Validation: `node --env-file=.env --import tsx tests/weekly-report.ts`, `TEST_BASE_URL=http://localhost:3001 node --env-file=.env --import tsx tests/access-control.ts`, TypeScript and production build.
+
+## Deleting configuration entries
+
+Administrators can delete buyers, groups, registrars, registrant profiles, Cloudflare accounts, Keitaro servers and hosting servers. Deleted entries disappear from configuration lists and future selections. Purchased domains, their associations, amounts and reports remain intact; remote websites and DNS are preserved. Defaults pointing to a deleted entry are cleared. Finish any queued operations using the entry before deleting it.
+
+Apply the additive migration before deploying: `prisma/changes/20261120_preserve_deleted_settings.sql`, then regenerate Prisma Client and restart web and worker. The migration replaces the group-name constraint with an active-name index so deleted group names can be reused.
+
+Regression check (transaction fixtures are rolled back; no remote API calls): `node --env-file=.env --import tsx tests/delete-settings.ts`.

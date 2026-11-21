@@ -1,3 +1,4 @@
+import { deleteSetting } from "@/lib/services/delete-settings";
 import { requireAdmin } from "@/lib/api/auth";
 import { prisma } from "@/lib/db";
 import { AppError, jsonError } from "@/lib/errors";
@@ -10,9 +11,19 @@ export async function PATCH(request: Request, ctx: Ctx) {
   try {
     const { id } = await ctx.params;
     const body = buyerGroupSchema.parse(await request.json());
-    if (await prisma.buyerGroup.findFirst({ where: { id: { not: id }, name: { equals: body.name, mode: "insensitive" } } })) {
+    if (await prisma.buyerGroup.findFirst({ where: { deletedAt: null, id: { not: id }, name: { equals: body.name, mode: "insensitive" } } })) {
       throw new AppError({ message: "A group with this name already exists", status: 409 });
     }
-    return Response.json({ group: await prisma.buyerGroup.update({ where: { id }, data: body }) });
+    return Response.json({ group: await prisma.buyerGroup.update({ where: { deletedAt: null, id }, data: body }) });
+  } catch (error) { return jsonError(error); }
+}
+
+export async function DELETE(_request: Request, ctx: Ctx) {
+  const { response } = await requireAdmin();
+  if (response) return response;
+  try {
+    const { id } = await ctx.params;
+    await deleteSetting("buyerGroup", id);
+    return Response.json({ ok: true });
   } catch (error) { return jsonError(error); }
 }

@@ -16,6 +16,7 @@ async function main() {
  assert.deepEqual(await a.listUsers(), ["web"]);
  for(const value of ["9", "10", "0", "null", '"denied"', "<html>Login</html>"]) { reply=value; assert.equal((await a.testConnection()).ok,false); }
  reply="0"; await a.addWebDomain("web","example.test","192.0.2.1");
+ assert.equal(calls.at(-1)?.get("arg4"), "yes", "New domains must apply the web-server configuration immediately");
  reply="9"; await assert.rejects(a.addWebDomain("web","example.test","192.0.2.1"));
  reply="4"; await assert.rejects(a.addWebDomain("web","example.test","192.0.2.1"));
  assert.deepEqual(calls.slice(-2).map(c=>c.get("cmd")), ["v-add-web-domain","v-change-web-domain-ip"]);

@@ -3,6 +3,12 @@ name: domain-manager
 x-app: &app
   image: domain-manager:production
   env_file: .env.production
+  environment:
+    NODE_EXTRA_CA_CERTS: /run/domain-manager/kitcube-panel.crt
+  volumes:
+    - ./deploy/certificates/kitcube-panel.crt:/run/domain-manager/kitcube-panel.crt:ro
+  extra_hosts:
+    - "panel.kitwintt.xyz:85.121.178.87"
   restart: unless-stopped
   init: true
   logging:

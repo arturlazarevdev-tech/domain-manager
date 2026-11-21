@@ -10,7 +10,7 @@ export async function GET() {
   const { response } = await requireUser();
   if (response) return response;
   try {
-    const registrars = await prisma.registrarAccount.findMany({ orderBy: { createdAt: "asc" } });
+    const registrars = await prisma.registrarAccount.findMany({ where: { deletedAt: null }, orderBy: { createdAt: "asc" } });
     return Response.json({ registrars: registrars.map(publicRegistrar) });
   } catch (error) {
     return jsonError(error);

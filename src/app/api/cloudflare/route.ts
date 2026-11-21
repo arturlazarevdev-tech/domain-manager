@@ -10,7 +10,7 @@ export async function GET() {
   const { response } = await requireUser();
   if (response) return response;
   const accounts = await prisma.cloudflareAccount.findMany({
-    orderBy: { createdAt: "asc" },
+    where: { deletedAt: null }, orderBy: { createdAt: "asc" },
     include: { _count: { select: { domains: true } } },
   });
   return Response.json({
@@ -42,7 +42,7 @@ export async function POST(request: Request) {
       },
     });
     const test = await testAndStoreCloudflareConnection(account.id);
-    const saved = await prisma.cloudflareAccount.findUniqueOrThrow({ where: { id: account.id } });
+    const saved = await prisma.cloudflareAccount.findUniqueOrThrow({ where: { deletedAt: null, id: account.id } });
     return Response.json({ account: publicCloudflare(saved), test });
   } catch (error) {
     return jsonError(error);

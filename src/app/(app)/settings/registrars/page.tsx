@@ -1,5 +1,6 @@
 "use client";
 
+import { DeleteSettingButton } from "@/components/delete-setting-button";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -68,6 +69,7 @@ export default function RegistrarsSettingsPage() {
         <div className="flex items-center gap-2">
           <StatusBadge value={item.connectionStatus} />
           <Button variant="outline" onClick={() => edit(item)}>Edit</Button>
+          <DeleteSettingButton endpoint={`/api/registrars/${item.id}`} name={item.name} />
           <Button variant="outline" onClick={async () => {
             try {
               const result = await api<{ ok: boolean; message?: string }>(`/api/registrars/${item.id}/test`, { method: "POST" });

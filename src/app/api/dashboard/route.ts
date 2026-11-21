@@ -11,9 +11,9 @@ export async function GET() {
   try {
     const [domains, cloudflare, keitaro, hestia, recent, spending] = await Promise.all([
       prisma.domain.count(),
-      prisma.cloudflareAccount.count({ where: { enabled: true } }),
-      prisma.keitaroServer.count({ where: { enabled: true } }),
-      prisma.hestiaServer.count({ where: { enabled: true } }),
+      prisma.cloudflareAccount.count({ where: { deletedAt: null, enabled: true } }),
+      prisma.keitaroServer.count({ where: { deletedAt: null, enabled: true } }),
+      prisma.hestiaServer.count({ where: { deletedAt: null, enabled: true } }),
       prisma.domain.findMany({
         take: 10,
         orderBy: { createdAt: "desc" },

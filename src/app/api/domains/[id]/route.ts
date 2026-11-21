@@ -48,8 +48,8 @@ export async function PATCH(request: Request, ctx: Ctx) {
       include: { buyer: true, buyerGroup: true },
     });
     if (!domain) return Response.json({ error: { message: "Domain not found" } }, { status: 404 });
-    const buyer = body.buyerId ? await prisma.buyer.findUnique({ where: { id: body.buyerId } }) : null;
-    const group = body.groupId ? await prisma.buyerGroup.findUnique({ where: { id: body.groupId } }) : null;
+    const buyer = body.buyerId ? await prisma.buyer.findUnique({ where: { deletedAt: null, id: body.buyerId } }) : null;
+    const group = body.groupId ? await prisma.buyerGroup.findUnique({ where: { deletedAt: null, id: body.groupId } }) : null;
     if (body.groupId && !group) return Response.json({ error: { message: "Group not found" } }, { status: 404 });
     if (body.buyerId && !buyer) return Response.json({ error: { message: "Buyer not found" } }, { status: 404 });
     const updated = await prisma.domain.update({

@@ -9,7 +9,7 @@ export async function GET() {
   const { response } = await requireUser();
   if (response) return response;
   const servers = await prisma.keitaroServer.findMany({
-    orderBy: { createdAt: "asc" },
+    where: { deletedAt: null }, orderBy: { createdAt: "asc" },
     include: { _count: { select: { domains: true } } },
   });
   return Response.json({

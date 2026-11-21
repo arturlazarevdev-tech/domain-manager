@@ -1,5 +1,6 @@
 "use client";
 
+import { DeleteSettingButton } from "@/components/delete-setting-button";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -142,15 +143,7 @@ export default function RegistrantsPage() {
               >
                 Set default
               </Button>
-              <Button
-                variant="outline"
-                onClick={async () => {
-                  await api(`/api/registrants/${item.id}`, { method: "DELETE" });
-                  queryClient.invalidateQueries({ queryKey: ["registrants"] });
-                }}
-              >
-                Delete
-              </Button>
+              <DeleteSettingButton endpoint={`/api/registrants/${item.id}`} name={item.name} />
             </div>
           </Card>
         ))}

@@ -34,9 +34,9 @@ export async function startPurchase(input: Omit<PurchaseJobPayload, "batchId" | 
     throw new AppError({ message: "Select either a buyer or a group" });
   }
   const buyer = input.buyerId
-    ? await prisma.buyer.findUnique({ where: { id: input.buyerId } }) : null;
+    ? await prisma.buyer.findUnique({ where: { deletedAt: null, id: input.buyerId } }) : null;
   const group = input.groupId
-    ? await prisma.buyerGroup.findUnique({ where: { id: input.groupId } }) : null;
+    ? await prisma.buyerGroup.findUnique({ where: { deletedAt: null, id: input.groupId } }) : null;
   if (input.buyerId && !buyer) throw new AppError({ message: "Buyer not found", status: 404 });
   if (input.groupId && !group) throw new AppError({ message: "Group not found", status: 404 });
   const batchId = crypto.randomUUID();
@@ -52,10 +52,10 @@ export async function startPurchase(input: Omit<PurchaseJobPayload, "batchId" | 
     });
   }
   const cloudflareAccountId = await resolveCloudflareAccountId(input.cloudflareAccountId);
-  const cloudflare = await prisma.cloudflareAccount.findUnique({ where: { id: cloudflareAccountId } });
+  const cloudflare = await prisma.cloudflareAccount.findUnique({ where: { deletedAt: null, id: cloudflareAccountId } });
   if (!cloudflare) throw new AppError({ message: "Cloudflare account not found", status: 404 });
   await assertCloudflareReadyForPurchase(cloudflareAccountId);
-  const registrarAccount = await prisma.registrarAccount.findUnique({ where: { id: input.registrarId } });
+  const registrarAccount = await prisma.registrarAccount.findUnique({ where: { deletedAt: null, id: input.registrarId } });
 
   const checks = await registrar.checkDomains(domains);
   const items: PurchaseItemProgress[] = [];
@@ -276,7 +276,7 @@ export async function processPurchaseJob(jobId: string) {
       });
       if (profile && result.externalCustomerId && result.externalContactId) {
         await prisma.registrantProfile.update({
-          where: { id: profile.id },
+          where: { deletedAt: null, id: profile.id },
           data: {
             registrarRefs: {
               ...refs,

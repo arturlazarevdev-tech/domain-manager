@@ -13,7 +13,7 @@ export async function POST(_request: Request, ctx: Ctx) {
     const registrar = await getRegistrar(id);
     const result = await registrar.testConnection();
     await prisma.registrarAccount.update({
-      where: { id },
+      where: { deletedAt: null, id },
       data: {
         connectionStatus: result.ok ? "connected" : "error",
         lastError: result.ok ? null : result.message,

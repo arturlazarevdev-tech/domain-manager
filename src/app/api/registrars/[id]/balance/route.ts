@@ -13,14 +13,14 @@ export async function GET(_request: Request, ctx: Ctx) {
     const registrar = await getRegistrar(id);
     const balance = await registrar.getBalance();
     await prisma.registrarAccount.update({
-      where: { id },
+      where: { deletedAt: null, id },
       data: { connectionStatus: "connected", lastError: null, lastTestedAt: new Date() },
     });
     return Response.json({ balance });
   } catch (error) {
     const { id } = await ctx.params;
     await prisma.registrarAccount.update({
-      where: { id },
+      where: { deletedAt: null, id },
       data: {
         connectionStatus: "error",
         lastError: error instanceof Error ? error.message : "Balance failed",

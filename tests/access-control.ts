@@ -30,7 +30,7 @@ async function main() {
   const families = ["buyers", "buyer-groups", "registrars", "registrants", "cloudflare", "keitaro", "hestia"];
   const mutations: Array<[string, string]> = families.flatMap((family) => [
     [`/api/${family}`, "POST"], [`/api/${family}/missing-access-test`, "PATCH"],
-    ...(family === "buyer-groups" ? [] : [[`/api/${family}/missing-access-test`, "DELETE"]]),
+    [`/api/${family}/missing-access-test`, "DELETE"],
   ] as Array<[string, string]>);
   mutations.push(["/api/settings/google-sheets", "GET"], ["/api/settings/google-sheets", "PATCH"], ["/api/settings/google-sheets", "POST"], ["/api/settings", "PATCH"], ["/api/cloudflare/test", "POST"],
     ["/api/registrars/missing-access-test/test", "POST"],

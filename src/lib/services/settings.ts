@@ -6,7 +6,7 @@ export async function resolveRegistrarId(explicit?: string) {
   const settings = await prisma.appSettings.findUnique({ where: { id: "default" } });
   if (settings?.defaultRegistrarId) return settings.defaultRegistrarId;
   const first = await prisma.registrarAccount.findFirst({
-    where: { enabled: true },
+    where: { deletedAt: null, enabled: true },
     orderBy: { createdAt: "asc" },
   });
   if (!first) {
@@ -23,7 +23,7 @@ export async function resolveCloudflareAccountId(explicit?: string | null) {
   const settings = await prisma.appSettings.findUnique({ where: { id: "default" } });
   if (settings?.defaultCloudflareId) return settings.defaultCloudflareId;
   const first = await prisma.cloudflareAccount.findFirst({
-    where: { enabled: true },
+    where: { deletedAt: null, enabled: true },
     orderBy: { createdAt: "asc" },
   });
   if (!first) {
@@ -65,7 +65,7 @@ function contactFromProfile(profile: {
 
 export async function resolveRegistrantContact(opts?: { registrarId?: string; registrantId?: string }) {
   if (opts?.registrantId) {
-    const profile = await prisma.registrantProfile.findUnique({ where: { id: opts.registrantId } });
+    const profile = await prisma.registrantProfile.findUnique({ where: { deletedAt: null, id: opts.registrantId } });
     if (!profile) throw new AppError({ message: "Registrant profile not found", status: 404 });
     if (opts.registrarId && profile.registrarId && profile.registrarId !== opts.registrarId) {
       throw new AppError({
@@ -79,10 +79,10 @@ export async function resolveRegistrantContact(opts?: { registrarId?: string; re
   if (opts?.registrarId) {
     const forRegistrar =
       (await prisma.registrantProfile.findFirst({
-        where: { registrarId: opts.registrarId, isDefault: true },
+        where: { deletedAt: null, registrarId: opts.registrarId, isDefault: true },
       })) ??
       (await prisma.registrantProfile.findFirst({
-        where: { registrarId: opts.registrarId },
+        where: { deletedAt: null, registrarId: opts.registrarId },
         orderBy: { createdAt: "asc" },
       }));
     if (forRegistrar) return { profile: forRegistrar, contact: contactFromProfile(forRegistrar) };
@@ -91,10 +91,10 @@ export async function resolveRegistrantContact(opts?: { registrarId?: string; re
   const settings = await prisma.appSettings.findUnique({ where: { id: "default" } });
   const profile =
     (settings?.defaultRegistrantId
-      ? await prisma.registrantProfile.findUnique({ where: { id: settings.defaultRegistrantId } })
+      ? await prisma.registrantProfile.findUnique({ where: { deletedAt: null, id: settings.defaultRegistrantId } })
       : null) ??
-    (await prisma.registrantProfile.findFirst({ where: { isDefault: true } })) ??
-    (await prisma.registrantProfile.findFirst({ orderBy: { createdAt: "asc" } }));
+    (await prisma.registrantProfile.findFirst({ where: { deletedAt: null, isDefault: true } })) ??
+    (await prisma.registrantProfile.findFirst({ where: { deletedAt: null }, orderBy: { createdAt: "asc" } }));
 
   if (profile) {
     return {
@@ -104,7 +104,7 @@ export async function resolveRegistrantContact(opts?: { registrarId?: string; re
   }
 
   const legacy = await prisma.buyer.findFirst({
-    where: { email: { not: "" }, phone: { not: "" }, country: { not: "" } },
+    where: { deletedAt: null, email: { not: "" }, phone: { not: "" }, country: { not: "" } },
     orderBy: { createdAt: "asc" },
   });
   if (legacy?.email && legacy.phone && legacy.country) {

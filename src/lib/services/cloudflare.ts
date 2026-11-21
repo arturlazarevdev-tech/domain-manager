@@ -34,7 +34,7 @@ export async function testAndStoreCloudflareConnection(id: string) {
     }
   }
   await prisma.cloudflareAccount.update({
-    where: { id },
+    where: { deletedAt: null, id },
     data: {
       connectionStatus: result.ok ? "connected" : "error",
       lastError: result.ok ? null : result.message,

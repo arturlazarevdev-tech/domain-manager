@@ -16,7 +16,7 @@ export async function POST(request: Request) {
   if (response) return response;
   try {
     const body = buyerGroupSchema.parse(await request.json());
-    if (await prisma.buyerGroup.findFirst({ where: { name: { equals: body.name, mode: "insensitive" } } })) {
+    if (await prisma.buyerGroup.findFirst({ where: { deletedAt: null, name: { equals: body.name, mode: "insensitive" } } })) {
       throw new AppError({ message: "A group with this name already exists", status: 409 });
     }
     return Response.json({ group: await prisma.buyerGroup.create({ data: body }) });

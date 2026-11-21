@@ -1,3 +1,4 @@
+import { deleteSetting } from "@/lib/services/delete-settings";
 import { jsonError } from "@/lib/errors";
 import { requireAdmin } from "@/lib/api/auth";
 import { decryptJson, encryptJson } from "@/lib/crypto";
@@ -14,7 +15,7 @@ export async function PATCH(request: Request, ctx: Ctx) {
   try {
     const { id } = await ctx.params;
     const body = cloudflareSchema.parse(await request.json());
-    const existing = await prisma.cloudflareAccount.findUnique({ where: { id } });
+    const existing = await prisma.cloudflareAccount.findUnique({ where: { deletedAt: null, id } });
     if (!existing) return Response.json({ error: { message: "Not found" } }, { status: 404 });
     const current = decryptJson<{ apiToken?: string }>(existing.credentialsEncrypted);
     const token = body.apiToken?.trim() || current.apiToken || "";
@@ -23,7 +24,7 @@ export async function PATCH(request: Request, ctx: Ctx) {
     }
     const accountId = body.accountId.trim();
     await prisma.cloudflareAccount.update({
-      where: { id },
+      where: { deletedAt: null, id },
       data: {
         name: body.name,
         accountId,
@@ -33,20 +34,13 @@ export async function PATCH(request: Request, ctx: Ctx) {
       },
     });
     const test = await testAndStoreCloudflareConnection(id);
-    const saved = await prisma.cloudflareAccount.findUniqueOrThrow({ where: { id } });
+    const saved = await prisma.cloudflareAccount.findUniqueOrThrow({ where: { deletedAt: null, id } });
     return Response.json({ account: publicCloudflare(saved), test });
   } catch (error) {
     return jsonError(error);
   }
 }
 
-export async function DELETE(_request: Request, ctx: Ctx) {
-  const { response } = await requireAdmin();
-  if (response) return response;
-  const { id } = await ctx.params;
-  await prisma.cloudflareAccount.delete({ where: { id } });
-  return Response.json({ ok: true });
-}
 
 export async function POST(_request: Request, ctx: Ctx) {
   const { response } = await requireAdmin();
@@ -58,4 +52,14 @@ export async function POST(_request: Request, ctx: Ctx) {
   } catch (error) {
     return jsonError(error);
   }
+}
+
+export async function DELETE(_request: Request, ctx: Ctx) {
+  const { response } = await requireAdmin();
+  if (response) return response;
+  try {
+    const { id } = await ctx.params;
+    await deleteSetting("cloudflareAccount", id);
+    return Response.json({ ok: true });
+  } catch (error) { return jsonError(error); }
 }

@@ -1,3 +1,4 @@
+import { deleteSetting } from "@/lib/services/delete-settings";
 import { AppError, jsonError } from "@/lib/errors";
 import { requireAdmin } from "@/lib/api/auth";
 import { encryptJson } from "@/lib/crypto";
@@ -15,7 +16,7 @@ export async function PATCH(request: Request, ctx: Ctx) {
   try {
     const { id } = await ctx.params;
     const body = registrarUpsertSchema.parse(await request.json());
-    const existing = await prisma.registrarAccount.findUnique({ where: { id } });
+    const existing = await prisma.registrarAccount.findUnique({ where: { deletedAt: null, id } });
     if (!existing) return Response.json({ error: { message: "Not found" } }, { status: 404 });
 
     if (body.provider !== existing.provider) throw new AppError({ message: "The provider of an existing account cannot be changed" });
@@ -26,7 +27,7 @@ export async function PATCH(request: Request, ctx: Ctx) {
     const credentialsLast4 = credentialHint(credentials);
 
     const updated = await prisma.registrarAccount.update({
-      where: { id },
+      where: { deletedAt: null, id },
       data: {
         name: body.name,
         enabled: body.enabled,
@@ -44,14 +45,13 @@ export async function PATCH(request: Request, ctx: Ctx) {
   }
 }
 
+
 export async function DELETE(_request: Request, ctx: Ctx) {
   const { response } = await requireAdmin();
   if (response) return response;
   try {
     const { id } = await ctx.params;
-    await prisma.registrarAccount.delete({ where: { id } });
+    await deleteSetting("registrarAccount", id);
     return Response.json({ ok: true });
-  } catch (error) {
-    return jsonError(error);
-  }
+  } catch (error) { return jsonError(error); }
 }

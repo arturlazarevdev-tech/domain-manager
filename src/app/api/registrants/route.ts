@@ -7,7 +7,7 @@ export async function GET() {
   const { response } = await requireUser();
   if (response) return response;
   const registrants = await prisma.registrantProfile.findMany({
-    orderBy: { createdAt: "asc" },
+    where: { deletedAt: null }, orderBy: { createdAt: "asc" },
     include: { registrar: { select: { id: true, name: true } } },
   });
   return Response.json({ registrants });
@@ -18,7 +18,7 @@ export async function POST(request: Request) {
   if (response) return response;
   try {
     const body = registrantSchema.parse(await request.json());
-    const registrar = await prisma.registrarAccount.findUnique({ where: { id: body.registrarId } });
+    const registrar = await prisma.registrarAccount.findUnique({ where: { deletedAt: null, id: body.registrarId } });
     if (!registrar) {
       return Response.json({ error: { message: "Registrar not found" } }, { status: 404 });
     }

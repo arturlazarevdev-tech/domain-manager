@@ -1,4 +1,5 @@
 "use client";
+import { DeleteSettingButton } from "@/components/delete-setting-button";
 import Link from "next/link";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
@@ -31,7 +32,7 @@ export default function HostingServersPage() {
     <div className="grid gap-3 lg:grid-cols-2">{(hs.data?.servers ?? []).map(server => <Card key={server.id} data-server-card>
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0"><h2 className="truncate font-semibold">{server.name}</h2><p className="mt-1 text-sm text-muted-foreground">{server.ipAddress || "IP address required"}</p></div>
-        <StatusBadge value={server.connectionStatus} />
+        <div className="flex items-center gap-2"><StatusBadge value={server.connectionStatus} />{admin && <DeleteSettingButton endpoint={`/api/hestia/${server.id}`} name={server.name} />}</div>
       </div>
       {server.lastError && <p className="mt-2 text-sm text-destructive">{server.lastError}</p>}
       <div className="mt-4 flex items-center justify-between gap-3">

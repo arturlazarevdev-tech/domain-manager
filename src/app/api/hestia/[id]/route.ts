@@ -1,3 +1,4 @@
+import { deleteSetting } from "@/lib/services/delete-settings";
 import { jsonError } from "@/lib/errors";
 import { requireAdmin } from "@/lib/api/auth";
 import { decryptJson, encryptJson } from "@/lib/crypto";
@@ -15,13 +16,13 @@ export async function PATCH(request: Request, ctx: Ctx) {
   try {
     const { id } = await ctx.params;
     const body = hestiaSchema.parse(await request.json());
-    const existing = await prisma.hestiaServer.findUnique({ where: { id } });
+    const existing = await prisma.hestiaServer.findUnique({ where: { deletedAt: null, id } });
     if (!existing) return Response.json({ error: { message: "Not found" } }, { status: 404 });
     const current = decryptJson<HestiaCredentials>(existing.credentialsEncrypted);
     const accessKey = body.accessKey || current.accessKey;
     const secretKey = body.secretKey || current.secretKey;
     const server = await prisma.hestiaServer.update({
-      where: { id },
+      where: { deletedAt: null, id },
       data: {
         name: body.name,
         url: body.url.replace(/\/$/, ""),
@@ -38,13 +39,6 @@ export async function PATCH(request: Request, ctx: Ctx) {
   }
 }
 
-export async function DELETE(_request: Request, ctx: Ctx) {
-  const { response } = await requireAdmin();
-  if (response) return response;
-  const { id } = await ctx.params;
-  await prisma.hestiaServer.delete({ where: { id } });
-  return Response.json({ ok: true });
-}
 
 export async function POST(_request: Request, ctx: Ctx) {
   const { response } = await requireAdmin();
@@ -54,7 +48,7 @@ export async function POST(_request: Request, ctx: Ctx) {
     const { adapter } = await getHestia(id);
     const result = await adapter.testConnection();
     await prisma.hestiaServer.update({
-      where: { id },
+      where: { deletedAt: null, id },
       data: {
         connectionStatus: result.ok ? "connected" : "error",
         lastError: result.ok ? null : result.message,
@@ -65,4 +59,14 @@ export async function POST(_request: Request, ctx: Ctx) {
   } catch (error) {
     return jsonError(error);
   }
+}
+
+export async function DELETE(_request: Request, ctx: Ctx) {
+  const { response } = await requireAdmin();
+  if (response) return response;
+  try {
+    const { id } = await ctx.params;
+    await deleteSetting("hestiaServer", id);
+    return Response.json({ ok: true });
+  } catch (error) { return jsonError(error); }
 }

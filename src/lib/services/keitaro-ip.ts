@@ -13,7 +13,7 @@ export async function createKeitaroIpJob(serverId: string, ip: string) {
   return prisma.$transaction(async tx => {
     // Serialize enqueue requests for this server, including different web processes.
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`keitaro-ip:${serverId}`}))`;
-    const server = await tx.keitaroServer.findUnique({ where: { id: serverId } });
+    const server = await tx.keitaroServer.findUnique({ where: { deletedAt: null, id: serverId } });
     if (!server) throw new AppError({ message: "Server not found", status: 404 });
     const active = await tx.job.findFirst({ where: { type: ipUpdateJobType, status: { in: ["queued", "running"] }, payload: { path: ["serverId"], equals: serverId } } });
     if (active) throw new AppError({ message: "An IP update is already running for this server", status: 409 });
@@ -21,7 +21,7 @@ export async function createKeitaroIpJob(serverId: string, ip: string) {
     // A hostname-based API URL remains stable. Replace a literal old IP only.
     const url = new URL(server.url);
     if (url.hostname === server.ipAddress) url.hostname = ip;
-    await tx.keitaroServer.update({ where: { id: serverId }, data: { ipAddress: ip, url: url.toString().replace(/\/$/, "") } });
+    await tx.keitaroServer.update({ where: { deletedAt: null, id: serverId }, data: { ipAddress: ip, url: url.toString().replace(/\/$/, "") } });
     return tx.job.create({ data: { type: ipUpdateJobType, status: "queued", payload: { serverId, ip, domainIds: domains.map(d => d.domainId) }, result: { results: [] } } });
   });
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { DeleteSettingButton } from "@/components/delete-setting-button";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -134,16 +135,7 @@ export default function CloudflareSettingsPage() {
               >
                 Edit
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={async () => {
-                  await api(`/api/cloudflare/${item.id}`, { method: "DELETE" });
-                  queryClient.invalidateQueries({ queryKey: ["cloudflare"] });
-                }}
-              >
-                Delete
-              </Button>
+              <DeleteSettingButton endpoint={`/api/cloudflare/${item.id}`} name={item.name} />
             </div>
           </Card>
         ))}

@@ -63,7 +63,7 @@ export class HestiaAdapter implements HestiaProvider {
   }
 
   async addWebDomain(user: string, domain: string, ip?: string | null): Promise<HestiaDomain> {
-    const args = ip ? [user, domain, ip, "no"] : [user, domain];
+    const args = ip ? [user, domain, ip, "yes"] : [user, domain];
     const result = await this.call<string>("v-add-web-domain", args);
     if (Number(result.trim()) === 4 && ip) await this.call("v-change-web-domain-ip", [user, domain, ip, "yes"]);
     return { name: domain, user, ip: ip ?? undefined };

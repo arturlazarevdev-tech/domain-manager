@@ -1,3 +1,4 @@
+import { deleteSetting } from "@/lib/services/delete-settings";
 import { AppError, jsonError } from "@/lib/errors";
 import { requireAdmin } from "@/lib/api/auth";
 import { prisma } from "@/lib/db";
@@ -11,13 +12,13 @@ export async function PATCH(request: Request, ctx: Ctx) {
   try {
     const { id } = await ctx.params;
     const body = buyerSchema.partial().parse(await request.json());
-    if (body.groupId && !await prisma.buyerGroup.findUnique({ where: { id: body.groupId } })) throw new AppError({ message: "Group not found", status: 404 });
+    if (body.groupId && !await prisma.buyerGroup.findUnique({ where: { deletedAt: null, id: body.groupId } })) throw new AppError({ message: "Group not found", status: 404 });
     if (body.isDefault) {
       await prisma.buyer.updateMany({ data: { isDefault: false } });
     }
     const name = body.name?.trim();
     const buyer = await prisma.buyer.update({
-      where: { id },
+      where: { deletedAt: null, id },
       data: {
         ...(body.groupId !== undefined ? { groupId: body.groupId } : {}),
         ...(name
@@ -32,10 +33,13 @@ export async function PATCH(request: Request, ctx: Ctx) {
   }
 }
 
+
 export async function DELETE(_request: Request, ctx: Ctx) {
   const { response } = await requireAdmin();
   if (response) return response;
-  const { id } = await ctx.params;
-  await prisma.buyer.delete({ where: { id } });
-  return Response.json({ ok: true });
+  try {
+    const { id } = await ctx.params;
+    await deleteSetting("buyer", id);
+    return Response.json({ ok: true });
+  } catch (error) { return jsonError(error); }
 }

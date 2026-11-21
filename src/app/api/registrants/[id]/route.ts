@@ -1,3 +1,4 @@
+import { deleteSetting } from "@/lib/services/delete-settings";
 import { jsonError } from "@/lib/errors";
 import { requireAdmin } from "@/lib/api/auth";
 import { prisma } from "@/lib/db";
@@ -11,7 +12,7 @@ export async function PATCH(request: Request, ctx: Ctx) {
   try {
     const { id } = await ctx.params;
     const body = registrantSchema.partial().parse(await request.json());
-    const existing = await prisma.registrantProfile.findUnique({ where: { id } });
+    const existing = await prisma.registrantProfile.findUnique({ where: { deletedAt: null, id } });
     if (!existing) return Response.json({ error: { message: "Registrant not found" } }, { status: 404 });
     const registrarId = body.registrarId ?? existing.registrarId;
     if (body.isDefault && registrarId) {
@@ -21,7 +22,7 @@ export async function PATCH(request: Request, ctx: Ctx) {
       });
     }
     const registrant = await prisma.registrantProfile.update({
-      where: { id },
+      where: { deletedAt: null, id },
       data: body,
       include: { registrar: { select: { id: true, name: true } } },
     });
@@ -31,10 +32,13 @@ export async function PATCH(request: Request, ctx: Ctx) {
   }
 }
 
+
 export async function DELETE(_request: Request, ctx: Ctx) {
   const { response } = await requireAdmin();
   if (response) return response;
-  const { id } = await ctx.params;
-  await prisma.registrantProfile.delete({ where: { id } });
-  return Response.json({ ok: true });
+  try {
+    const { id } = await ctx.params;
+    await deleteSetting("registrantProfile", id);
+    return Response.json({ ok: true });
+  } catch (error) { return jsonError(error); }
 }

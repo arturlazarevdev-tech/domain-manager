@@ -38,11 +38,11 @@ export async function getSpending(db: Prisma.TransactionClient = prisma) {
   }
   const empty = () => ({ domainCount: 0, totals: [] as SpendTotal[] });
   return {
-    buyers: buyers.map((buyer) => {
+    buyers: buyers.filter((buyer) => !buyer.deletedAt).map((buyer) => {
       const summary = buyerSpend.get(buyer.id) ?? empty();
       const first = summary.totals[0];
       return { id: buyer.id, name: buyer.name, isDefault: buyer.isDefault, stageName: buyer.stageName, groupId: buyer.groupId, group: buyer.group, ...summary, spend: first?.spend ?? 0, spendThisMonth: first?.spendThisMonth ?? 0, currency: first?.currency ?? "USD" };
     }),
-    groups: groups.map((group) => ({ ...group, buyerCount: buyers.filter((buyer) => buyer.groupId === group.id).length, ...(groupSpend.get(group.id) ?? empty()) })),
+    groups: groups.filter((group) => !group.deletedAt).map((group) => ({ ...group, buyerCount: buyers.filter((buyer) => buyer.groupId === group.id && !buyer.deletedAt).length, ...(groupSpend.get(group.id) ?? empty()) })),
   };
 }

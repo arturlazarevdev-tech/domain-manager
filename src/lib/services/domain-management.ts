@@ -33,14 +33,14 @@ export function txtRecordName(domain: string, input: string) {
   return full;
 }
 async function validateReferences(input: Management) {
-  if (!await prisma.registrarAccount.findUnique({ where: { id: input.registrarId } })) throw new AppError({ message: "Registrar not found", status: 404 });
-  if (input.buyerId && !await prisma.buyer.findUnique({ where: { id: input.buyerId } })) throw new AppError({ message: "Buyer not found", status: 404 });
-  if (input.groupId && !await prisma.buyerGroup.findUnique({ where: { id: input.groupId } })) throw new AppError({ message: "Buyer group not found", status: 404 });
-  if (input.cloudflareAccountId && !await prisma.cloudflareAccount.findFirst({ where: { id: input.cloudflareAccountId, enabled: true } })) throw new AppError({ message: "Cloudflare account not found or disabled", status: 404 });
+  if (!await prisma.registrarAccount.findUnique({ where: { deletedAt: null, id: input.registrarId } })) throw new AppError({ message: "Registrar not found", status: 404 });
+  if (input.buyerId && !await prisma.buyer.findUnique({ where: { deletedAt: null, id: input.buyerId } })) throw new AppError({ message: "Buyer not found", status: 404 });
+  if (input.groupId && !await prisma.buyerGroup.findUnique({ where: { deletedAt: null, id: input.groupId } })) throw new AppError({ message: "Buyer group not found", status: 404 });
+  if (input.cloudflareAccountId && !await prisma.cloudflareAccount.findFirst({ where: { deletedAt: null, id: input.cloudflareAccountId, enabled: true } })) throw new AppError({ message: "Cloudflare account not found or disabled", status: 404 });
   if (input.serverIp && isIP(input.serverIp) !== 4) throw new AppError({ message: "Enter a valid IPv4 address" });
   if (input.mode === "configure" && input.serverIp && !input.cloudflareAccountId) throw new AppError({ message: "Select Cloudflare to update DNS" });
   if (input.serverType !== "none") {
-    const server = input.serverType === "keitaro" ? await prisma.keitaroServer.findFirst({ where: { id: input.serverId!, enabled: true } }) : await prisma.hestiaServer.findFirst({ where: { id: input.serverId!, enabled: true } });
+    const server = input.serverType === "keitaro" ? await prisma.keitaroServer.findFirst({ where: { deletedAt: null, id: input.serverId!, enabled: true } }) : await prisma.hestiaServer.findFirst({ where: { deletedAt: null, id: input.serverId!, enabled: true } });
     if (!server) throw new AppError({ message: "Server not found or disabled", status: 404 });
     if (input.mode === "configure" && !input.cloudflareAccountId) throw new AppError({ message: "Select Cloudflare before configuring a server" });
     if (input.mode === "configure" && input.serverType === "keitaro" && isIP(input.serverIp || server.ipAddress || "") !== 4) throw new AppError({ message: "Enter an IPv4 address or set one in Settings → Servers" });
@@ -75,12 +75,12 @@ async function configure(id: string, input: Management) {
     if (input.mode === "existing") {
       // Record the selected server even if its API is unavailable during read-only sync.
       if (input.serverType === "keitaro") {
-        const server = await prisma.keitaroServer.findUniqueOrThrow({ where: { id: input.serverId! } });
+        const server = await prisma.keitaroServer.findUniqueOrThrow({ where: { deletedAt: null, id: input.serverId! } });
         const values = { keitaroDomainId: null, serverId: server.id, groupName: input.keitaroGroup || null, serverIp: input.serverIp || server.ipAddress, status: "not_added" as const };
         await prisma.domainKeitaro.upsert({ where: { domainId: id }, create: { domainId: id, ...values }, update: values });
         await prisma.domainHestia.deleteMany({ where: { domainId: id } });
       } else if (input.serverType === "hestia") {
-        const server = await prisma.hestiaServer.findUniqueOrThrow({ where: { id: input.serverId! } });
+        const server = await prisma.hestiaServer.findUniqueOrThrow({ where: { deletedAt: null, id: input.serverId! } });
         const values = { serverId: server.id, webUser: input.hestiaUser || server.username, ip: input.serverIp || server.ipAddress, status: "not_added" as const };
         await prisma.domainHestia.upsert({ where: { domainId: id }, create: { domainId: id, ...values }, update: values });
         await prisma.domainKeitaro.deleteMany({ where: { domainId: id } });
@@ -120,7 +120,7 @@ async function configure(id: string, input: Management) {
     } else if (input.serverType === "hestia") {
       if (input.mode === "configure") await addDomainToHestia(id, input.serverId!, input.hestiaUser, input.serverIp);
       else {
-        const server = await prisma.hestiaServer.findUniqueOrThrow({ where: { id: input.serverId! } });
+        const server = await prisma.hestiaServer.findUniqueOrThrow({ where: { deletedAt: null, id: input.serverId! } });
         const data = { serverId: server.id, webUser: input.hestiaUser || server.username, ip: input.serverIp || server.ipAddress, status: "not_added" as const };
         await prisma.domainHestia.upsert({ where: { domainId: id }, create: { domainId: id, ...data }, update: data });
       }
