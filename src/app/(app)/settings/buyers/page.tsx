@@ -17,6 +17,7 @@ import { Select } from "@/components/ui/dialog";
 type Buyer = {
   id: string;
   name: string;
+  telegram?: string | null;
   domainCount: number;
   spend: number;
   spendThisMonth: number;
@@ -60,10 +61,11 @@ export default function BuyersPage() {
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [name, setName] = useState("");
+  const [telegram, setTelegram] = useState("");
 
   async function save() {
     try {
-      const payload = { name: name.trim(), groupId: groupId || null };
+      const payload = { name: name.trim(), telegram: telegram.trim(), groupId: groupId || null };
       if (editingId) {
         await api(`/api/buyers/${editingId}`, { method: "PATCH", body: JSON.stringify(payload) });
       } else {
@@ -73,6 +75,7 @@ export default function BuyersPage() {
       setOpen(false);
       setEditingId(null);
       setName("");
+      setTelegram("");
       refresh();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Save failed");
@@ -91,6 +94,7 @@ export default function BuyersPage() {
             onClick={() => {
               setEditingId(null);
               setName("");
+              setTelegram("");
               setGroupId("");
               setOpen(true);
             }}
@@ -116,6 +120,7 @@ export default function BuyersPage() {
         <THead>
           <tr>
             <Th>Buyer</Th>
+            <Th>Telegram</Th>
             <Th>Group</Th>
             <Th>Domains</Th>
             <Th>Spend</Th>
@@ -126,6 +131,7 @@ export default function BuyersPage() {
           {(data?.buyers ?? []).map((buyer) => (
             <tr key={buyer.id} className="border-t">
               <Td className="font-medium">{buyer.name}</Td>
+              <Td>{buyer.telegram || "—"}</Td>
               <Td>{buyer.group?.name ?? "—"}</Td>
               <Td>{buyer.domainCount}</Td>
               <Td>
@@ -139,6 +145,7 @@ export default function BuyersPage() {
                     onClick={() => {
                       setEditingId(buyer.id);
                       setName(buyer.name);
+                      setTelegram(buyer.telegram || "");
                       setGroupId(buyer.groupId ?? "");
                       setOpen(true);
                     }}
@@ -162,6 +169,7 @@ export default function BuyersPage() {
             {(groups?.groups ?? []).map((group) => <option key={group.id} value={group.id}>{group.name}</option>)}
           </Select>
         </Field>
+        <Field label="Telegram"><Input value={telegram} onChange={e => setTelegram(e.target.value)} placeholder="@buyer_name" /></Field>
         <div className="mt-4 flex justify-end gap-2">
           <Button variant="outline" onClick={() => setOpen(false)}>
             Cancel

@@ -28,7 +28,7 @@ export function RefreshDomainStatus({ domainId, domainIds, all, disabled = false
         const updated = result.results.filter(r => r.ok).length;
         const skipped = result.results.filter(r => r.skipped).length;
         const failed = result.results.filter(r => !r.ok && !r.skipped);
-        const message = `${updated} refreshed${skipped ? `; ${skipped} skipped (not on Cloudflare)` : ""}${failed.length ? `; ${failed.length} failed` : ""}`;
+        const message = `${updated} refreshed${skipped ? `; ${skipped} skipped (no Cloudflare API connection)` : ""}${failed.length ? `; ${failed.length} failed` : ""}`;
         if (failed.length) toast.error(message, { description: failed.slice(0, 3).map(r => `${r.domain}: ${r.error}`).join("\n") });
         else if (skipped) toast.info(message);
         else toast.success(message);

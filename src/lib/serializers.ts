@@ -41,7 +41,8 @@ export function publicCloudflare(account: {
   return {
     ...omitSecrets(account),
     credentials: maskSecret(account.credentialsLast4),
-    accountShort: `${account.accountId.slice(0, 4)}...${account.accountId.slice(-4)}`,
+    metadataOnly: !account.accountId,
+    accountShort: account.accountId ? `${account.accountId.slice(0, 4)}...${account.accountId.slice(-4)}` : "Not configured",
   };
 }
 
@@ -91,7 +92,7 @@ export function serializeDomain(domain: {
     nameservers: string[];
     zoneId: string | null;
     errorMessage: string | null;
-    account: { id: string; name: string };
+    account: { id: string; name: string; accountId?: string };
   } | null;
   keitaro: {
     status: string;
@@ -139,7 +140,7 @@ export function serializeDomain(domain: {
     status: domain.status,
     nameservers: domain.nameservers,
     errorMessage: domain.errorMessage,
-    registrar: domain.registrar,
+    registrar: { id: domain.registrar.id, name: domain.registrar.name, provider: domain.registrar.provider },
     buyerGroup: domain.buyer ? domain.buyer.group ?? null : domain.buyerGroup ?? null,
     buyer: domain.buyer
       ? {
@@ -152,9 +153,10 @@ export function serializeDomain(domain: {
     cloudflare: domain.cloudflare
       ? {
           status: domain.cloudflare.status,
+          metadataOnly: domain.cloudflare.account.accountId === "",
           nameservers: domain.cloudflare.nameservers,
           zoneId: domain.cloudflare.zoneId,
-          account: domain.cloudflare.account,
+          account: { id: domain.cloudflare.account.id, name: domain.cloudflare.account.name },
           errorMessage: domain.cloudflare.errorMessage,
         }
       : null,
@@ -167,7 +169,7 @@ export function serializeDomain(domain: {
           status: domain.keitaro.status,
           groupName: domain.keitaro.groupName,
           serverIp: domain.keitaro.serverIp,
-          server: domain.keitaro.server,
+          server: { id: domain.keitaro.server.id, name: domain.keitaro.server.name, ipAddress: domain.keitaro.server.ipAddress },
           errorMessage: domain.keitaro.errorMessage,
         }
       : null,
@@ -176,7 +178,7 @@ export function serializeDomain(domain: {
           status: domain.hestia.status,
           ip: domain.hestia.ip,
           webUser: domain.hestia.webUser,
-          server: domain.hestia.server,
+          server: { id: domain.hestia.server.id, name: domain.hestia.server.name, ipAddress: domain.hestia.server.ipAddress },
           errorMessage: domain.hestia.errorMessage,
         }
       : null,

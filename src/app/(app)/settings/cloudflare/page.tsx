@@ -16,6 +16,7 @@ type Account = {
   name: string;
   accountId: string;
   accountShort?: string;
+  metadataOnly?: boolean;
   credentials: string;
   connectionStatus: string;
   lastError?: string | null;
@@ -116,12 +117,12 @@ export default function CloudflareSettingsPage() {
                 <div className="text-sm text-muted-foreground">Account: {item.accountShort || item.accountId}</div>
                 <div className="text-sm text-muted-foreground">API token {item.credentials}</div>
               </div>
-              <StatusBadge value={item.connectionStatus} />
+              {item.metadataOnly ? <span className="text-xs text-muted-foreground">Display only</span> : <StatusBadge value={item.connectionStatus} />}
             </div>
-            <div className="text-sm">Zones: {item.zoneCount ?? item.domainCount ?? 0}</div>
+            <div className="text-sm">{item.metadataOnly ? "Domains listed" : "Zones"}: {item.zoneCount ?? item.domainCount ?? 0}</div>
             {item.lastError && <div className="text-sm text-destructive">{item.lastError}</div>}
             <div className="flex flex-wrap gap-2">
-              <Button variant="outline" size="sm" onClick={() => testSaved(item.id)}>
+              <Button variant="outline" size="sm" disabled={item.metadataOnly} onClick={() => testSaved(item.id)}>
                 Test
               </Button>
               <Button

@@ -20,6 +20,7 @@ export async function PATCH(request: Request, ctx: Ctx) {
     const buyer = await prisma.buyer.update({
       where: { deletedAt: null, id },
       data: {
+        ...(body.telegram !== undefined ? { telegram: body.telegram ? `@${body.telegram.replace(/^@/, "")}` : null } : {}),
         ...(body.groupId !== undefined ? { groupId: body.groupId } : {}),
         ...(name
           ? { name, stageName: name, keitaroGroup: name }

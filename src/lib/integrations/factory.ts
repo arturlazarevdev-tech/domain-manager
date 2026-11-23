@@ -8,6 +8,7 @@ import { KeitaroAdapter, keitaroCredentialsSchema } from "@/lib/integrations/kei
 export async function getCloudflare(accountId: string) {
   const account = await prisma.cloudflareAccount.findUnique({ where: { deletedAt: null, id: accountId } });
   if (!account) throw new AppError({ message: "Cloudflare account not found", status: 404 });
+  if (account.accountId === "") throw new AppError({ message: "This Cloudflare account is display-only. Add its Account ID and API token in Settings → Cloudflare before managing DNS." });
   const credentials = cloudflareCredentialsSchema.parse(decryptJson(account.credentialsEncrypted));
   return { account, adapter: new CloudflareAdapter(credentials) };
 }

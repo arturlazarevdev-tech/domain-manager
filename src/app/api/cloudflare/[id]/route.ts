@@ -28,7 +28,7 @@ export async function PATCH(request: Request, ctx: Ctx) {
       data: {
         name: body.name,
         accountId,
-        enabled: body.enabled ?? existing.enabled,
+        enabled: body.enabled ?? (existing.accountId === "" ? true : existing.enabled),
         credentialsEncrypted: encryptJson({ apiToken: token, accountId }),
         credentialsLast4: body.apiToken?.trim() ? last4(token) : existing.credentialsLast4,
       },

@@ -449,3 +449,7 @@ Administrators can delete buyers, groups, registrars, registrant profiles, Cloud
 Apply the additive migration before deploying: `prisma/changes/20261120_preserve_deleted_settings.sql`, then regenerate Prisma Client and restart web and worker. The migration replaces the group-name constraint with an active-name index so deleted group names can be reused.
 
 Regression check (transaction fixtures are rolled back; no remote API calls): `node --env-file=.env --import tsx tests/delete-settings.ts`.
+
+Buyer profiles support an optional Telegram contact (Settings → Buyers). Apply `prisma/changes/20261123_buyer_telegram.sql` and regenerate Prisma before deploying this version.
+
+Imported Cloudflare email labels can be display-only: they have no Account ID or API token, remain disabled, and show **Display only** on domain and account pages. Bulk/background refresh skips them. Add the real Account ID and token in Settings → Cloudflare to connect later. Historical table metadata does not prove live DNS, zone status or current registrar account ownership.

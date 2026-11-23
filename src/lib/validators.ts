@@ -30,6 +30,7 @@ export const assignmentSchema = z.object({
 
 export const buyerSchema = z.object({
   name: z.string().trim().min(1).max(64),
+  telegram: z.string().trim().max(33).regex(/^$|^@?[A-Za-z0-9_]{5,32}$/, "Enter a Telegram username, e.g. @buyer_name").optional(),
   isDefault: z.boolean().optional(),
   groupId: z.string().min(1).nullable().optional(),
 });

@@ -28,7 +28,7 @@ type DomainRow = {
   registrar: { id: string; name: string; provider?: string };
   buyerGroup: { id: string; name: string } | null;
   buyer: { id: string; name: string; keitaroGroup?: string | null; stageName?: string | null } | null;
-  cloudflare: { status: string; zoneId?: string | null; account: { id: string; name: string } } | null;
+  cloudflare: { status: string; metadataOnly?: boolean; zoneId?: string | null; account: { id: string; name: string } } | null;
   keitaro?: ManagedDomain["keitaro"];
   hestia?: ManagedDomain["hestia"];
   dns: { ip: string | null };
@@ -300,11 +300,11 @@ export default function PurchasedPage() {
                 </select>
               </Td>
               <Td>{row.buyerGroup?.name ?? "—"}</Td>
-              <Td>{formatMoney(row.purchasePrice, row.currency)}{row.registrar.provider === "unknown" && <p className="mt-1 text-xs text-muted-foreground">Cost unverified</p>}</Td>
+              <Td>{formatMoney(row.purchasePrice, row.currency)}{row.registrar.provider === "unknown" && row.purchasePrice === 0 && <p className="mt-1 text-xs text-muted-foreground">Cost unverified</p>}</Td>
               <Td>
                 {row.cloudflare ? (
                   <span>
-                    {row.cloudflare.account.name} <StatusBadge value={row.cloudflare.status} />
+                    {row.cloudflare.account.name} {row.cloudflare.metadataOnly ? <span className="text-xs text-muted-foreground">Display only</span> : <StatusBadge value={row.cloudflare.status} />}
                   </span>
                 ) : (
                   "—"

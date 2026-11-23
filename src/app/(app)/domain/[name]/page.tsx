@@ -32,6 +32,7 @@ type DomainDetails = {
   buyer: { id: string; name: string; keitaroGroup?: string | null; stageName?: string | null } | null;
   cloudflare: {
     status: string;
+    metadataOnly?: boolean;
     nameservers: string[];
     zoneId?: string | null;
     errorMessage?: string | null;
@@ -95,7 +96,7 @@ export default function DomainDetailsPage() {
             <>
               <div>Account: {domain.cloudflare.account.name}</div>
               <div>
-                Status: <StatusBadge value={domain.cloudflare.status} />
+                Status: {domain.cloudflare.metadataOnly ? <span>Display only · API not configured</span> : <StatusBadge value={domain.cloudflare.status} />}
               </div>
               <div>Zone ID: {domain.cloudflare.zoneId || "—"}</div>
               <div className="font-mono text-xs">
@@ -108,7 +109,7 @@ export default function DomainDetailsPage() {
                 <DomainHttps id={domain.id} state={domain.https} />
               </div>}
               <div className="flex flex-wrap gap-2">
-                <RefreshDomainStatus domainId={domain.id} />
+                {!domain.cloudflare.metadataOnly && <RefreshDomainStatus domainId={domain.id} />}
                 {domain.cloudflare.status === "failed" && (
                   <Button
                     variant="outline"

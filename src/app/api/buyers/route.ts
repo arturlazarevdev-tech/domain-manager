@@ -24,6 +24,7 @@ export async function POST(request: Request) {
     const buyer = await prisma.buyer.create({
       data: {
         name,
+        telegram: body.telegram ? `@${body.telegram.replace(/^@/, "")}` : null,
         groupId: body.groupId ?? null,
         stageName: name,
         keitaroGroup: name,

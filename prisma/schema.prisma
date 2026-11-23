@@ -144,6 +144,7 @@ model Buyer {
   deletedAt DateTime?
   id            String   @id @default(cuid())
   name          String
+  telegram      String?
   groupId       String?
   group         BuyerGroup? @relation(fields: [groupId], references: [id], onDelete: Restrict)
   stageName     String?

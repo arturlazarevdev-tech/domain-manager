@@ -15,11 +15,11 @@ export async function refreshDomainSelection(input: unknown) {
     return { ok: true as const };
   }
   const ids = [...new Set(body.domainIds)];
-  const domains = await prisma.domain.findMany({ where: { id: { in: ids } }, select: { id: true, domain: true, cloudflare: { select: { id: true } } } });
+  const domains = await prisma.domain.findMany({ where: { id: { in: ids } }, select: { id: true, domain: true, cloudflare: { select: { id: true, account: { select: { accountId: true } } } } } });
   if (domains.length !== ids.length) throw new AppError({ message: "Some selected domains no longer exist. Reload the list and select them again.", status: 404 });
   const results: Array<{ id: string; domain: string; ok: boolean; skipped?: boolean; error?: string }> = [];
   for (const domain of domains) {
-    if (!domain.cloudflare) {
+    if (!domain.cloudflare || domain.cloudflare.account.accountId === "") {
       results.push({ id: domain.id, domain: domain.domain, ok: false, skipped: true });
       continue;
     }

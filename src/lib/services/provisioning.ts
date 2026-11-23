@@ -354,7 +354,7 @@ export async function refreshCloudflareStatus(domainId?: string, options: { sync
       ? {
           OR: [{ domainId }, { domain: { domain: decodeURIComponent(domainId) } }],
         }
-      : options.all ? {} : { status: { in: ["pending", "waiting_nameservers", "creating"] } },
+      : { account: { accountId: { not: "" } }, ...(options.all ? {} : { status: { in: ["pending", "waiting_nameservers", "creating"] } }) },
     include: { domain: true, account: true },
   });
   let last: { status: string; nameservers: string[]; zoneId: string | null } | null = null;

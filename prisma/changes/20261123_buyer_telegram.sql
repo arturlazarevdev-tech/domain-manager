@@ -1,0 +1,1 @@
+ALTER TABLE "Buyer" ADD COLUMN IF NOT EXISTS "telegram" TEXT;

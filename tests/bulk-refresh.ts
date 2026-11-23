@@ -10,12 +10,12 @@ function stub(target: object, key: string, value: unknown) {
   Reflect.set(target, key, value);
   restore.push(() => { Reflect.set(target, key, previous); });
 }
-const domains = ["a", "b", "without-cf"].map(id => ({ id, domain: `${id}.example`, cloudflare: id === "without-cf" ? null : { id: `cf-${id}` } }));
+const domains = ["a", "b", "without-cf", "display-only"].map(id => ({ id, domain: `${id}.example`, cloudflare: id === "without-cf" ? null : { id: `cf-${id}`, account: { accountId: id === "display-only" ? "" : "account" } } }));
 const links = domains.filter(d => d.cloudflare).map(d => ({ id: `cf-${d.id}`, domainId: d.id, domain: d, accountId: "account", zoneId: `zone-${d.id}` }));
 const reads: string[] = [], snapshots: string[] = [];
 let failA = false;
 stub(prisma.domain, "findMany", async (args: { where: { id: { in: string[] } } }) => domains.filter(d => args.where.id.in.includes(d.id)));
-stub(prisma.domainCloudflare, "findMany", async (args: { where: { OR?: Array<{ domainId?: string }> } }) => args.where.OR ? links.filter(l => args.where.OR!.some(condition => condition.domainId === l.domainId)) : links);
+stub(prisma.domainCloudflare, "findMany", async (args: { where: { OR?: Array<{ domainId?: string }>; account?: { accountId: { not: string } } } }) => args.where.OR ? links.filter(l => args.where.OR!.some(condition => condition.domainId === l.domainId)) : links.filter(l => !args.where.account || l.domain.cloudflare?.account.accountId !== args.where.account.accountId.not));
 stub(prisma.cloudflareAccount, "findUnique", async () => ({ enabled: true, credentialsEncrypted: encryptJson({ apiToken: "test", accountId: "account" }) }));
 stub(prisma.domain, "update", async () => ({}));
 stub(prisma.activityLog, "create", async () => ({}));
@@ -46,6 +46,10 @@ async function main() {
   assert.deepEqual(result.results?.map(r => ({ id: r.id, ok: r.ok, skipped: !!r.skipped })), [{ id: "a", ok: true, skipped: false }, { id: "without-cf", ok: false, skipped: true }]);
   assert.deepEqual(snapshots, ["a"], "Only the selected domain's cached DNS may change; duplicate IDs refresh once");
   assert(reads.every(path => path.includes("zone-a")), "Unselected zones are never contacted");
+  const beforeDisplayOnly = reads.length;
+  const displayOnly = await refreshDomainSelection({ domainIds: ["display-only"] });
+  assert.equal(displayOnly.results?.[0].skipped, true);
+  assert.equal(reads.length, beforeDisplayOnly, "Display-only account records must never contact Cloudflare");
 
   failA = true;
   const partial = await refreshDomainSelection({ domainIds: ["a", "b"] });
