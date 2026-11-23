@@ -57,6 +57,7 @@ export default function PurchasedPage() {
   const [management, setManagement] = useState<DomainRow | "add" | null>(null);
   const [txtDomain, setTxtDomain] = useState<DomainRow | null>(null);
   const [selected, setSelected] = useState<string[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
   const [modal, setModal] = useState<"kt" | "hs" | null>(null);
   const [search, setSearch] = useState("");
   const [buyerFilter, setBuyerFilter] = useState("");
@@ -116,7 +117,8 @@ export default function PurchasedPage() {
             <Button variant="outline" disabled={!selectedRows.length} onClick={() => setModal("hs")}>
               Add selected to server
             </Button>
-            <RefreshDomainStatus />
+            <RefreshDomainStatus domainIds={selectedRows.map(row => row.id)} disabled={refreshing} onBusyChange={setRefreshing} />
+            <RefreshDomainStatus all disabled={refreshing} onBusyChange={setRefreshing} />
           </div>
         }
       />

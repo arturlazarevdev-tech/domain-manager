@@ -123,6 +123,13 @@ to see the provider error and use **Retry HTTPS** in its Cloudflare card.
 A successful state means the redirect is configured; it does
 not claim that an asynchronous certificate has already been issued.
 
+In Purchased, **Refresh selected (N)** updates only checked rows in the current
+filtered list. **Refresh all** updates every domain connected to Cloudflare,
+including domains hidden by filters. Domains without Cloudflare are reported as
+skipped. Both actions show a loading indicator and cannot overlap on the page.
+The bulk refresh API requires either `{ "domainIds": ["id"] }` or
+`{ "all": true }`; an empty or ambiguous request never refreshes all domains.
+
 Before deploying, apply `prisma/changes/20261123_https_defaults.sql` and regenerate
 Prisma Client. For existing domains, run `node --import tsx src/configure-https.ts`
 inside the production web container for a read-only preview; add `--apply` to
