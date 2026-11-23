@@ -13,6 +13,7 @@ import { Table, THead, Th, Td } from "@/components/ui/table";
 import { domainReportCsv, flattenReportGroups, groupDomainReport, matchesPurchaseDates, reportTotals, REPORT_GROUP_LABELS } from "@/lib/domain-report";
 import { api } from "@/lib/api/client";
 import { DomainHttps, type DomainHttpsState } from "@/components/domain-https";
+import { RefreshDomainStatus } from "@/components/refresh-domain-status";
 import { useReportGrouping } from "@/lib/report-preferences";
 import { formatDate, formatMoney } from "@/lib/utils";
 
@@ -115,21 +116,7 @@ export default function PurchasedPage() {
             <Button variant="outline" disabled={!selectedRows.length} onClick={() => setModal("hs")}>
               Add selected to server
             </Button>
-            <Button
-              variant="outline"
-              onClick={async () => {
-                try {
-                  await api("/api/domains/bulk/refresh", { method: "POST" });
-                  toast.success("Cloudflare statuses and DNS records updated");
-                } catch (error) { toast.error(error instanceof Error ? error.message : "Refresh failed"); }
-                finally {
-                  refetch();
-                  queryClient.invalidateQueries({ queryKey: ["domain"] });
-                }
-              }}
-            >
-              Refresh status
-            </Button>
+            <RefreshDomainStatus />
           </div>
         }
       />

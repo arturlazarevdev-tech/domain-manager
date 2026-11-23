@@ -6,6 +6,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { DomainManagementDialog, TxtRecordDialog } from "@/components/domain-management-dialogs";
 import { DomainHttps, type DomainHttpsState } from "@/components/domain-https";
+import { RefreshDomainStatus } from "@/components/refresh-domain-status";
 import { HestiaAssignDialog, KeitaroAssignDialog } from "@/components/assign-server-dialogs";
 import { PageHeader } from "@/components/layout/app-shell";
 import { StatusBadge } from "@/components/status-badge";
@@ -107,9 +108,7 @@ export default function DomainDetailsPage() {
                 <DomainHttps id={domain.id} state={domain.https} />
               </div>}
               <div className="flex flex-wrap gap-2">
-                <Button variant="outline" onClick={() => run(`/api/domains/${domain.id}/refresh`, {})}>
-                  Refresh status
-                </Button>
+                <RefreshDomainStatus domainId={domain.id} />
                 {domain.cloudflare.status === "failed" && (
                   <Button
                     variant="outline"
