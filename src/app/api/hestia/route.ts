@@ -4,6 +4,7 @@ import { encryptJson } from "@/lib/crypto";
 import { prisma } from "@/lib/db";
 import { last4, publicServer } from "@/lib/serializers";
 import { hestiaSchema } from "@/lib/validators";
+import { hestiaPanelUrl } from "@/lib/hestia-panel-url";
 
 export async function GET() {
   const { response } = await requireUser();
@@ -13,7 +14,7 @@ export async function GET() {
     include: { _count: { select: { domains: true } } },
   });
   return Response.json({
-    servers: servers.map((server) => ({ ...publicServer(server), domainCount: server._count.domains })),
+    servers: await Promise.all(servers.map(async (server) => ({ ...publicServer(server), ...await hestiaPanelUrl(server), domainCount: server._count.domains }))),
   });
 }
 

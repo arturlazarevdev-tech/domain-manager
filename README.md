@@ -76,6 +76,11 @@ server credentials and connection settings remain administrator-only.
 Adding a domain creates a website configuration. Upload content using the server's
 normal file transfer or deployment workflow.
 
+Each server card has **Open Hestia**, opening its panel in a new tab. When the
+configured panel hostname has no public DNS, the link uses the server IP with
+the same protocol and port. Browsers may show a certificate warning for IP URLs.
+This browser link does not change the API connection settings.
+
 KIT TEAM SEO hosting uses `80.96.58.192` with the panel/API at
 `https://panel.kitteamseo.domenhub.xyz:8083`. The plain HTTPS hostname redirects
 to the panel port. Its DNS-only A record points at the hosting server.

@@ -3,6 +3,7 @@ import { DeleteSettingButton } from "@/components/delete-setting-button";
 import Link from "next/link";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { ExternalLink } from "lucide-react";
 import { PageHeader } from "@/components/layout/app-shell";
 import { HestiaAssignDialog } from "@/components/assign-server-dialogs";
 import { StatusBadge } from "@/components/status-badge";
@@ -11,7 +12,7 @@ import { Card, Input } from "@/components/ui/primitives";
 import { Dialog } from "@/components/ui/dialog";
 import { api } from "@/lib/api/client";
 
-type Server = { id: string; name: string; ipAddress?: string | null; enabled: boolean; domainCount: number; connectionStatus: string; lastError?: string | null };
+type Server = { id: string; name: string; ipAddress?: string | null; panelUrl?: string | null; panelUsesIp?: boolean; enabled: boolean; domainCount: number; connectionStatus: string; lastError?: string | null };
 type Domain = { id: string; domain: string; status: string; hestia?: { server: { id: string }; status: string } | null };
 export default function HostingServersPage() {
   const [target, setTarget] = useState<Server | null>(null);
@@ -37,7 +38,14 @@ export default function HostingServersPage() {
       {server.lastError && <p className="mt-2 text-sm text-destructive">{server.lastError}</p>}
       <div className="mt-4 flex items-center justify-between gap-3">
         <span className="text-xs text-muted-foreground">{server.domainCount} {server.domainCount === 1 ? "domain" : "domains"}</span>
-        <Button size="sm" disabled={!server.enabled || !server.ipAddress} onClick={() => { setTarget(server); setIds([]); setSearch(""); setAssigning(false); }}>Add domains</Button>
+        <div className="flex flex-wrap justify-end gap-2">
+          {server.panelUrl && <Button size="sm" variant="outline" asChild>
+            <a href={server.panelUrl} target="_blank" rel="noopener noreferrer" aria-label={`Open Hestia for ${server.name} in a new tab`} title={server.panelUsesIp ? "Opens the panel by IP. Your browser may display a certificate warning." : "Open the Hestia control panel in a new tab"}>
+              <ExternalLink className="h-4 w-4" aria-hidden="true" />Open Hestia
+            </a>
+          </Button>}
+          <Button size="sm" disabled={!server.enabled || !server.ipAddress} onClick={() => { setTarget(server); setIds([]); setSearch(""); setAssigning(false); }}>Add domains</Button>
+        </div>
       </div>
     </Card>)}</div>
     <Dialog open={Boolean(target) && !assigning} onClose={() => setTarget(null)} title={`Add domains to ${target?.name ?? "server"}`}>
