@@ -4,6 +4,7 @@ import { AppError, detailedErrorMessage } from "@/lib/errors";
 import { getCloudflare, getHestia, getKeitaro } from "@/lib/integrations/factory";
 import { getRegistrar } from "@/lib/integrations/registrars/factory";
 import { logActivity } from "@/lib/services/activity";
+import { configureDomainHttps } from "./https";
 
 export async function addDomainToCloudflare(domainId: string, accountId: string) {
   const domain = await prisma.domain.findUnique({ where: { id: domainId } });
@@ -100,6 +101,7 @@ export async function addDomainToCloudflare(domainId: string, accountId: string)
       }
     }
 
+    await configureDomainHttps(domainId);
     return prisma.domainCloudflare.findUnique({ where: { domainId } });
   } catch (error) {
     const details = error instanceof AppError ? error.message : error instanceof Error ? error.message : "Cloudflare failed";
@@ -201,6 +203,7 @@ export async function pointDomainDns(domainId: string, ip: string) {
     level: "success",
   });
 
+  await configureDomainHttps(domainId);
   return prisma.domainDnsRecord.findMany({ where: { domainId } });
 }
 

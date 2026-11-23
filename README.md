@@ -109,6 +109,28 @@ website domains still require their own public DNS records.
 
 ## Purchase flow
 
+New Cloudflare zones and server assignments configure **Always Use HTTPS** by
+default. Tokens need **Zone → Zone Settings → Edit** in addition to existing zone
+and DNS permissions. The application preserves the origin SSL/TLS mode and never
+switches to Flexible or changes DNS to bypass a certificate problem. Redirects
+apply to proxied DNS records; DNS-only websites require a certificate and redirect
+on the hosting server. DNS activation and Universal SSL certificate issuance can
+take time after registration.
+
+HTTPS setup failures do not invalidate a purchase or interrupt DNS provisioning.
+Purchased and purchase results show **HTTPS needs attention**, the provider error
+and **Retry HTTPS**. A successful state means the redirect is configured; it does
+not claim that an asynchronous certificate has already been issued.
+
+Before deploying, apply `prisma/changes/20261123_https_defaults.sql` and regenerate
+Prisma Client. For existing domains, run `node --import tsx src/configure-https.ts`
+inside the production web container for a read-only preview; add `--apply` to
+configure redirects and save individual errors. `--domain=example.com` limits the
+operation to one domain. Fix missing token permissions and rerun safely. No domains
+are purchased, DNS records changed, or origin SSL modes modified by this command.
+Regression checks: `node --import tsx tests/https.ts` and
+`node --import tsx tests/hosting.ts` (all external HTTP calls mocked).
+
 1. Recheck availability and price
 2. Check registrar balance
 3. Register domain

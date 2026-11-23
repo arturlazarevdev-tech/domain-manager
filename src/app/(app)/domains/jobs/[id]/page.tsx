@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/primitives";
 import { Table, THead, Th, Td } from "@/components/ui/table";
 import { api } from "@/lib/api/client";
+import { DomainHttps, type DomainHttpsState } from "@/components/domain-https";
 import type { PurchaseJobPayload } from "@/lib/jobs/types";
 import { cn, formatDateTime } from "@/lib/utils";
 
@@ -37,9 +38,10 @@ type ActivityLog = {
 };
 
 type DomainRow = {
+  https?: DomainHttpsState;
   id: string;
   domain: string;
-  cloudflare: { status: string; account: { id: string; name: string }; errorMessage?: string | null } | null;
+  cloudflare: { status: string; zoneId?: string | null; account: { id: string; name: string }; errorMessage?: string | null } | null;
   dns: { ip: string | null };
   server: { name: string } | null;
   group: string | null;
@@ -246,6 +248,7 @@ export default function JobPage() {
                   <Td>✓</Td>
                   <Td>
                     {row.cloudflare ? <StatusBadge value={row.cloudflare.status} /> : "—"}
+                    {row.cloudflare?.zoneId && <DomainHttps id={row.id} state={row.https} />}
                   </Td>
                   <Td>{row.dns?.ip || "—"}</Td>
                   <Td>{row.server?.name || "—"}</Td>

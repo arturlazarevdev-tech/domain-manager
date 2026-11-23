@@ -189,6 +189,8 @@ model RegistrantProfile {
 }
 
 model Domain {
+  httpsConfiguredAt DateTime?
+  httpsError        String?
   id               String            @id @default(cuid())
   domain           String            @unique
   tld              String

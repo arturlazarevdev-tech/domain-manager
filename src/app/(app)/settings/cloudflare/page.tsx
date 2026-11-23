@@ -166,7 +166,7 @@ export default function CloudflareSettingsPage() {
               placeholder={editingId ? "Leave blank to keep the saved token" : "Paste token from My Profile → API Tokens"}
             />
             <p className="text-xs text-muted-foreground">
-              Cloudflare → My Profile → API Tokens → Create Token. Permissions: Zone → Zone → Edit, Zone → DNS → Edit,
+              Cloudflare → My Profile → API Tokens → Create Token. Permissions: Zone → Zone → Edit, Zone → DNS → Edit, Zone → Zone Settings → Edit (HTTPS),
               Account → Account Settings → Read. Zone Resources must be All zones from this account — otherwise new
               domains cannot be added.
             </p>

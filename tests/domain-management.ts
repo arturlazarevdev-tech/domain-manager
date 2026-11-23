@@ -28,6 +28,8 @@ globalThis.fetch = (async (input, init) => {
   requests.push({ path: url.pathname + url.search, method, body });
   if (url.hostname === "api.cloudflare.com") {
     if (cloudflareUnavailable) return Response.json({ success: false, errors: [{ message: "Cloudflare unavailable" }] }, { status: 502 });
+    if (url.pathname.endsWith('/settings/ssl')) return Response.json({ success: true, result: { value: 'strict' } });
+    if (url.pathname.endsWith('/settings/always_use_https')) return Response.json({ success: true, result: { value: 'on' } });
     if (url.pathname.endsWith('/zones/test-zone')) return Response.json({ success: true, result: { id: 'test-zone', name, status: 'active', name_servers: ['ns1.example', 'ns2.example'] } });
     if (url.pathname.endsWith('/zones')) return Response.json({ success: true, result: [{ id: 'test-zone', name, status: 'active', name_servers: ['ns1.example', 'ns2.example'] }] });
     if (url.pathname.endsWith('/dns_records') && method === 'GET') {

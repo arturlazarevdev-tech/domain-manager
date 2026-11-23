@@ -12,10 +12,12 @@ import { Button } from "@/components/ui/button";
 import { Table, THead, Th, Td } from "@/components/ui/table";
 import { domainReportCsv, flattenReportGroups, groupDomainReport, matchesPurchaseDates, reportTotals, REPORT_GROUP_LABELS } from "@/lib/domain-report";
 import { api } from "@/lib/api/client";
+import { DomainHttps, type DomainHttpsState } from "@/components/domain-https";
 import { useReportGrouping } from "@/lib/report-preferences";
 import { formatDate, formatMoney } from "@/lib/utils";
 
 type DomainRow = {
+  https?: DomainHttpsState;
   id: string;
   domain: string;
   purchasePrice: number;
@@ -318,6 +320,7 @@ export default function PurchasedPage() {
                 ) : (
                   "—"
                 )}
+                {row.cloudflare?.zoneId && <DomainHttps id={row.id} state={row.https} />}
               </Td>
               <Td>{row.dns?.ip || "—"}</Td>
               <Td>{row.server ? row.server.name : "—"}</Td>

@@ -103,6 +103,7 @@ export type CloudflareDnsRecord = {
 };
 
 export interface CloudflareProvider {
+  enableHttps(zoneId: string): Promise<{ changed: boolean }>;
   testConnection(): Promise<{ ok: true } | { ok: false; message: string }>;
   createZone(domain: string): Promise<CloudflareZone>;
   getZone(domain: string): Promise<CloudflareZone | null>;

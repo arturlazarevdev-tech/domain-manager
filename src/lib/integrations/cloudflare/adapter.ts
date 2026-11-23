@@ -119,6 +119,29 @@ export class CloudflareAdapter implements CloudflareProvider {
     return payload.result_info?.total_count ?? (Array.isArray(payload.result) ? payload.result.length : 0);
   }
 
+  async enableHttps(zoneId: string) {
+    const path = `/zones/${encodeURIComponent(zoneId)}/settings`;
+    try {
+      const ssl = await this.request<{ value: string }>(`${path}/ssl`);
+      if (!["flexible", "full", "strict", "origin_pull"].includes(ssl.value)) {
+        throw new AppError({ message: "Cloudflare SSL/TLS is disabled or unavailable. Enable an appropriate SSL/TLS mode before forcing HTTPS.", provider: "cloudflare" });
+      }
+      const current = await this.request<{ value: string }>(`${path}/always_use_https`);
+      if (current.value === "on") return { changed: false };
+      if (current.value !== "off") throw new AppError({ message: "Cloudflare returned an invalid HTTPS setting", provider: "cloudflare", status: 502 });
+      const updated = await this.request<{ value: string }>(`${path}/always_use_https`, {
+        method: "PATCH", body: JSON.stringify({ value: "on" }),
+      });
+      if (updated.value !== "on") throw new AppError({ message: "Cloudflare did not confirm the HTTPS redirect", provider: "cloudflare", status: 502 });
+      return { changed: true };
+    } catch (error) {
+      if (error instanceof AppError && /unauthorized|authentication|permission|access denied|not authorized/i.test(`${error.message} ${error.details ?? ""}`)) {
+        throw new AppError({ message: "HTTPS requires Cloudflare API permission Zone → Zone Settings → Edit for this zone. Update the account token and retry HTTPS.", details: error.details, provider: "cloudflare", status: 502, retryable: true });
+      }
+      throw error;
+    }
+  }
+
   async assertZoneCapacity() {
     const counts = await Promise.all([undefined, "active", "pending"].map(async (status) => {
       const payload = await this.requestRaw<unknown[]>(

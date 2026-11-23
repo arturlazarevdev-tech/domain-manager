@@ -64,6 +64,8 @@ export function publicServer(server: {
 }
 
 export function serializeDomain(domain: {
+  httpsConfiguredAt?: Date | null;
+  httpsError?: string | null;
   id: string;
   domain: string;
   tld: string;
@@ -126,6 +128,7 @@ export function serializeDomain(domain: {
       : null;
   return {
     id: domain.id,
+    https: { configuredAt: domain.httpsConfiguredAt ?? null, error: domain.httpsError ?? null },
     domain: domain.domain,
     tld: domain.tld,
     purchasePrice: Number(domain.purchasePrice),
