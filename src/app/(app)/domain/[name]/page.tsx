@@ -23,7 +23,7 @@ type DomainDetails = {
   purchasePrice: number;
   currency: string;
   registeredAt?: string;
-  purchasedAt?: string;
+  purchasedAt?: string | null;
   nameservers: string[];
   errorMessage?: string;
   https?: DomainHttpsState;

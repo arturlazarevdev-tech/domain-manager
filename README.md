@@ -281,7 +281,8 @@ Imported inventory whose registrar is unverified can reference an archived,
 disabled `unknown` registrar placeholder. It preserves the domain's history but
 is excluded from active integrations and purchase selectors. Costs entered as
 temporary zeroes must be identified in the domain's warning and import activity;
-registration dates remain empty until verified. Before importing such records,
+Purchased also labels their costs as unverified. Purchase dates remain empty
+until verified, rather than showing the import date. Before importing such records,
 apply `prisma/changes/20261123_unknown_import_registrar.sql`, regenerate Prisma
 Client and deploy the updated image.
 

@@ -23,9 +23,9 @@ type DomainRow = {
   domain: string;
   purchasePrice: number;
   currency: string;
-  purchasedAt?: string;
+  purchasedAt?: string | null;
   status: string;
-  registrar: { id: string; name: string };
+  registrar: { id: string; name: string; provider?: string };
   buyerGroup: { id: string; name: string } | null;
   buyer: { id: string; name: string; keitaroGroup?: string | null; stageName?: string | null } | null;
   cloudflare: { status: string; zoneId?: string | null; account: { id: string; name: string } } | null;
@@ -300,7 +300,7 @@ export default function PurchasedPage() {
                 </select>
               </Td>
               <Td>{row.buyerGroup?.name ?? "—"}</Td>
-              <Td>{formatMoney(row.purchasePrice, row.currency)}</Td>
+              <Td>{formatMoney(row.purchasePrice, row.currency)}{row.registrar.provider === "unknown" && <p className="mt-1 text-xs text-muted-foreground">Cost unverified</p>}</Td>
               <Td>
                 {row.cloudflare ? (
                   <span>

@@ -135,7 +135,7 @@ export function serializeDomain(domain: {
     currency: domain.currency,
     registeredAt: domain.registeredAt,
     expiresAt: domain.expiresAt,
-    purchasedAt: domain.registeredAt ?? domain.createdAt,
+    purchasedAt: domain.registeredAt ?? (domain.registrar.provider === "unknown" ? null : domain.createdAt),
     status: domain.status,
     nameservers: domain.nameservers,
     errorMessage: domain.errorMessage,
