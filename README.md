@@ -277,6 +277,14 @@ closed until the new certificate is verified. Editing an API key preserves this
 trust configuration. This does not change system-wide TLS trust.
 Regression check: `node --import tsx tests/keitaro-tls.ts` (local TLS servers).
 
+Imported inventory whose registrar is unverified can reference an archived,
+disabled `unknown` registrar placeholder. It preserves the domain's history but
+is excluded from active integrations and purchase selectors. Costs entered as
+temporary zeroes must be identified in the domain's warning and import activity;
+registration dates remain empty until verified. Before importing such records,
+apply `prisma/changes/20261123_unknown_import_registrar.sql`, regenerate Prisma
+Client and deploy the updated image.
+
 **Purchased domains → Add domain** records an existing domain with its original purchase
 date/cost, registrar, buyer/group, Cloudflare account and server. Choose **Save existing
 settings** for metadata and read-only synchronization, or **Configure Cloudflare and server**

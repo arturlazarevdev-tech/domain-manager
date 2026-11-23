@@ -11,6 +11,7 @@ enum RegistrarProvider {
   regway
   openprovider
   dynadot
+  unknown
 }
 
 enum DomainStatus {
