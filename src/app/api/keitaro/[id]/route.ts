@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db";
 import { getKeitaro } from "@/lib/integrations/factory";
 import { last4, publicServer } from "@/lib/serializers";
 import { keitaroSchema } from "@/lib/validators";
+import type { KeitaroCredentials } from "@/lib/integrations/keitaro/adapter";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -17,7 +18,7 @@ export async function PATCH(request: Request, ctx: Ctx) {
     const body = keitaroSchema.parse(await request.json());
     const existing = await prisma.keitaroServer.findUnique({ where: { deletedAt: null, id } });
     if (!existing) return Response.json({ error: { message: "Not found" } }, { status: 404 });
-    const current = decryptJson<{ apiKey: string }>(existing.credentialsEncrypted);
+    const current = decryptJson<KeitaroCredentials>(existing.credentialsEncrypted);
     const apiKey = body.apiKey || current.apiKey;
     const server = await prisma.keitaroServer.update({
       where: { deletedAt: null, id },
@@ -26,7 +27,7 @@ export async function PATCH(request: Request, ctx: Ctx) {
         url: body.url.replace(/\/$/, ""),
         ipAddress: body.ipAddress?.trim() || existing.ipAddress,
         enabled: body.enabled ?? existing.enabled,
-        credentialsEncrypted: encryptJson({ apiKey }),
+        credentialsEncrypted: encryptJson({ ...current, apiKey }),
         credentialsLast4: body.apiKey ? last4(body.apiKey) : existing.credentialsLast4,
       },
     });

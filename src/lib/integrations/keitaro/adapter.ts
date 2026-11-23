@@ -1,10 +1,13 @@
 import { z } from "zod";
 import { AppError } from "@/lib/errors";
 import type { KeitaroDomain, KeitaroProvider } from "@/lib/integrations/types";
+import { pinnedKeitaroRequest } from "./pinned-https";
 
 export const keitaroCredentialsSchema = z.object({
   apiKey: z.string().min(1),
-});
+  tlsCertificate: z.string().min(1).optional(),
+  tlsOrigin: z.string().url().optional(),
+}).refine(value => Boolean(value.tlsCertificate) === Boolean(value.tlsOrigin), "Keitaro certificate and HTTPS origin must be configured together");
 
 export type KeitaroCredentials = z.infer<typeof keitaroCredentialsSchema>;
 
@@ -97,7 +100,7 @@ export class KeitaroAdapter implements KeitaroProvider {
 
   private async request<T>(path: string, init?: RequestInit): Promise<T> {
     const url = `${this.baseUrl.replace(/\/$/, "")}/admin_api/v1${path}`;
-    const response = await fetch(url, {
+    const options: RequestInit = {
       ...init,
       headers: {
         "Api-Key": this.credentials.apiKey,
@@ -106,7 +109,10 @@ export class KeitaroAdapter implements KeitaroProvider {
         ...(init?.headers ?? {}),
       },
       cache: "no-store",
-    });
+    };
+    const response = this.credentials.tlsCertificate && this.credentials.tlsOrigin
+      ? await pinnedKeitaroRequest(url, options, { certificate: this.credentials.tlsCertificate, origin: this.credentials.tlsOrigin })
+      : await fetch(url, options);
     const text = await response.text();
     let payload: unknown = text;
     try {

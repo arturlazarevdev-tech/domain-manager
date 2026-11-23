@@ -266,6 +266,17 @@ Bulk Keitaro results report actual successes and individual failures; failed dom
 details show the provider error and a **Retry Keitaro** button.
 Mocked adapter regression check: `node --import tsx tests/keitaro.ts`.
 
+Keitaro installations using a self-signed certificate can store `tlsCertificate`
+(PEM) and `tlsOrigin` alongside the encrypted API key. Identify the intended
+server and record its certificate fingerprint before provisioning this trust.
+Connections then require HTTPS, the exact configured origin, a valid TLS chain
+to the supplied certificate and its exact leaf fingerprint. Legacy certificates
+without IP subjectAltNames are supported by that explicit certificate pin.
+Redirects are not followed; certificate rotation or a different origin fails
+closed until the new certificate is verified. Editing an API key preserves this
+trust configuration. This does not change system-wide TLS trust.
+Regression check: `node --import tsx tests/keitaro-tls.ts` (local TLS servers).
+
 **Purchased domains → Add domain** records an existing domain with its original purchase
 date/cost, registrar, buyer/group, Cloudflare account and server. Choose **Save existing
 settings** for metadata and read-only synchronization, or **Configure Cloudflare and server**
