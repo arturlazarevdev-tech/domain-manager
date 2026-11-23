@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import { DomainManagementDialog, TxtRecordDialog } from "@/components/domain-management-dialogs";
+import { DomainHttps, type DomainHttpsState } from "@/components/domain-https";
 import { HestiaAssignDialog, KeitaroAssignDialog } from "@/components/assign-server-dialogs";
 import { PageHeader } from "@/components/layout/app-shell";
 import { StatusBadge } from "@/components/status-badge";
@@ -24,6 +25,7 @@ type DomainDetails = {
   purchasedAt?: string;
   nameservers: string[];
   errorMessage?: string;
+  https?: DomainHttpsState;
   registrar: { id: string; name: string };
   buyerGroup: { id: string; name: string } | null;
   buyer: { id: string; name: string; keitaroGroup?: string | null; stageName?: string | null } | null;
@@ -100,6 +102,10 @@ export default function DomainDetailsPage() {
                 <div className="mt-1">{domain.cloudflare.nameservers.join("\n") || "—"}</div>
               </div>
               {domain.cloudflare.errorMessage && <div className="text-destructive">{domain.cloudflare.errorMessage}</div>}
+              {domain.cloudflare.zoneId && <div className="border-t pt-3">
+                <div className="font-medium">HTTPS</div>
+                <DomainHttps id={domain.id} state={domain.https} />
+              </div>}
               <div className="flex flex-wrap gap-2">
                 <Button variant="outline" onClick={() => run(`/api/domains/${domain.id}/refresh`, {})}>
                   Refresh status

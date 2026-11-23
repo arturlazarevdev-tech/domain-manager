@@ -320,7 +320,7 @@ export default function PurchasedPage() {
                 ) : (
                   "—"
                 )}
-                {row.cloudflare?.zoneId && <DomainHttps id={row.id} state={row.https} />}
+                {row.cloudflare?.zoneId && <DomainHttps id={row.id} state={row.https} compact />}
               </Td>
               <Td>{row.dns?.ip || "—"}</Td>
               <Td>{row.server ? row.server.name : "—"}</Td>

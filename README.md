@@ -118,8 +118,9 @@ on the hosting server. DNS activation and Universal SSL certificate issuance can
 take time after registration.
 
 HTTPS setup failures do not invalidate a purchase or interrupt DNS provisioning.
-Purchased and purchase results show **HTTPS needs attention**, the provider error
-and **Retry HTTPS**. A successful state means the redirect is configured; it does
+Purchased and purchase results show a compact HTTPS status. Open the domain page
+to see the provider error and use **Retry HTTPS** in its Cloudflare card.
+A successful state means the redirect is configured; it does
 not claim that an asynchronous certificate has already been issued.
 
 Before deploying, apply `prisma/changes/20261123_https_defaults.sql` and regenerate

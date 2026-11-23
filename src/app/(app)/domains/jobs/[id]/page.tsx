@@ -248,7 +248,7 @@ export default function JobPage() {
                   <Td>✓</Td>
                   <Td>
                     {row.cloudflare ? <StatusBadge value={row.cloudflare.status} /> : "—"}
-                    {row.cloudflare?.zoneId && <DomainHttps id={row.id} state={row.https} />}
+                    {row.cloudflare?.zoneId && <DomainHttps id={row.id} state={row.https} compact />}
                   </Td>
                   <Td>{row.dns?.ip || "—"}</Td>
                   <Td>{row.server?.name || "—"}</Td>

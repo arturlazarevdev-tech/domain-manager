@@ -196,6 +196,7 @@ function HostingAssignForm({ open, onClose, domainIds, domains, onDone, initialS
   return <Dialog open={open} onClose={() => { if (!loading) onClose(); }} title="Add domains to server">
     <div className="grid gap-3 text-sm">
       <p>Create websites on the server and point root and www DNS records to its IP address.</p>
+      <p className="text-muted-foreground">This changes where the domains open, including domains currently pointing to Keitaro. Upload website files separately in Hestia File Manager.</p>
       {domains?.length === 1 && <strong>{domains[0]}</strong>}
       <Field label="Server"><Select value={serverId} disabled={loading || Boolean(initialServerId)} onChange={e => setServerId(e.target.value)}>
         <option value="">{hs.isLoading ? "Loading…" : "Select server"}</option>
@@ -203,7 +204,7 @@ function HostingAssignForm({ open, onClose, domainIds, domains, onDone, initialS
       </Select></Field>
       {hs.error && <p role="alert" className="text-destructive">Could not load servers.</p>}
       {!hs.isLoading && !hs.error && !servers.length && <p>Ask an administrator to connect a hosting server first.</p>}
-      <Field label="Cloudflare for domains without DNS setup"><Select value={accountId} disabled={loading} onChange={e => setAccountId(e.target.value)}>
+      <Field label="Cloudflare account for domains without a zone"><Select value={accountId} disabled={loading} onChange={e => setAccountId(e.target.value)}>
         <option value="">Use each domain’s existing account</option>
         {(cf.data?.accounts ?? []).filter(a => a.enabled).map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
       </Select></Field>
