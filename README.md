@@ -58,6 +58,7 @@ Cloudflare accounts, Keitaro/Hestia servers, general settings and users.
 All signed-in users can open Infrastructure → Servers. Other Infrastructure
 pages and all Settings pages are available only to administrators.
 API permissions use the current database role, so demotion takes effect immediately.
+In **Settings → Users → Edit**, admins can change a user’s name, email and role (Technician or Admin). Editing does not change the password; use **Password** separately. The last administrator cannot be demoted.
 
 With the app and its database running, verify permissions with
 `node --import tsx tests/access-control.ts`. This check uses temporary users and a
