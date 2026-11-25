@@ -454,3 +454,5 @@ Regression check (transaction fixtures are rolled back; no remote API calls): `n
 Buyer profiles support an optional Telegram contact (Settings → Buyers). Apply `prisma/changes/20261123_buyer_telegram.sql` and regenerate Prisma before deploying this version.
 
 Imported Cloudflare email labels can be display-only: they have no Account ID or API token, remain disabled, and show **Display only** on domain and account pages. Bulk/background refresh skips them. Add the real Account ID and token in Settings → Cloudflare to connect later. Historical table metadata does not prove live DNS, zone status or current registrar account ownership.
+
+Cloudflare connection checks accept an active zone-scoped token when a readable zone identifies the selected Account ID. Account-settings access is optional in that case; empty or mismatched zone results do not prove account access. See [Cloudflare List Zones](https://developers.cloudflare.com/api/resources/zones/methods/list/).

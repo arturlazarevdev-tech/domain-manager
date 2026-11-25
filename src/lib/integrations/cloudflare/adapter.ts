@@ -43,6 +43,17 @@ export class CloudflareAdapter implements CloudflareProvider {
       await this.request(`/accounts/${this.credentials.accountId.trim()}`);
       return { ok: true as const };
     } catch (error) {
+      // Zone-scoped tokens can manage DNS without reading account settings.
+      // Confirm ownership from Cloudflare's response, not just the query filter.
+      const accountId = this.credentials.accountId.trim();
+      try {
+        const zones = await this.request<Array<{ account?: { id?: string } }>>(
+          `/zones?account.id=${encodeURIComponent(accountId)}&per_page=1`,
+        );
+        if (zones.some(zone => zone.account?.id === accountId)) return { ok: true as const };
+      } catch {
+        // Keep the original account-access failure when neither check succeeds.
+      }
       return {
         ok: false as const,
         message:
